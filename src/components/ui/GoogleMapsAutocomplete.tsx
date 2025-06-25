@@ -166,18 +166,18 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
         </div>
       </div>
       
-      {/* Location Modal - Positioned to appear above hero section but allow background visibility */}
+      {/* MAXIMUM Z-INDEX LOCATION MODAL - APPEARS IN FRONT OF EVERYTHING */}
       {showSuggestions && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center" 
+          className="fixed inset-0 z-[999999] flex items-center justify-center" 
           onClick={handleCloseModal}
         >
-          {/* Semi-transparent backdrop - allows background to show through */}
-          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm"></div>
+          {/* Full backdrop with strong blur */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-md"></div>
           
-          {/* Modal content */}
+          {/* Modal content with maximum z-index */}
           <div 
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto m-4 relative z-10"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto m-4 relative z-[999999]"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
