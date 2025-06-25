@@ -118,13 +118,14 @@ const ProviderDashboard: React.FC = () => {
         .single();
 
       if (providerError || !providerData) {
+        console.error('Provider not found, redirecting to registration:', providerError);
         navigate('/provider-registration');
         return;
       }
 
       setProfile(providerData);
 
-      // Fetch bookings
+      // Fetch bookings with better error handling
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -134,41 +135,51 @@ const ProviderDashboard: React.FC = () => {
         .eq('provider_id', providerData.id)
         .order('created_at', { ascending: false });
 
-      if (bookingsError) throw bookingsError;
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        // Don't throw error, just set empty array
+        setBookings([]);
+      } else {
+        const processedBookings = bookingsData?.map(booking => ({
+          id: booking.id,
+          service_name: booking.service_name,
+          date: booking.date,
+          status: booking.status,
+          amount: parseFloat(booking.amount),
+          customer_email: booking.users?.email || 'Unknown',
+          created_at: booking.created_at
+        })) || [];
+        setBookings(processedBookings);
+      }
 
-      // Fetch earnings
+      // Fetch earnings with better error handling
       const { data: earningsData, error: earningsError } = await supabase
         .from('earnings')
         .select('*')
         .eq('provider_id', providerData.id)
         .order('created_at', { ascending: false });
 
-      if (earningsError) throw earningsError;
+      if (earningsError) {
+        console.error('Error fetching earnings:', earningsError);
+        // Don't throw error, just set empty array
+        setEarnings([]);
+      } else {
+        const processedEarnings = earningsData?.map(earning => ({
+          id: earning.id,
+          gross_amount: parseFloat(earning.gross_amount),
+          platform_fee: parseFloat(earning.platform_fee),
+          net_amount: parseFloat(earning.net_amount),
+          status: earning.status,
+          created_at: earning.created_at,
+          booking_id: earning.booking_id
+        })) || [];
+        setEarnings(processedEarnings);
+      }
 
-      const processedBookings = bookingsData?.map(booking => ({
-        id: booking.id,
-        service_name: booking.service_name,
-        date: booking.date,
-        status: booking.status,
-        amount: parseFloat(booking.amount),
-        customer_email: booking.users?.email || 'Unknown',
-        created_at: booking.created_at
-      })) || [];
+      // Calculate stats from the data we have
+      const processedBookings = bookings.length > 0 ? bookings : [];
+      const processedEarnings = earnings.length > 0 ? earnings : [];
 
-      const processedEarnings = earningsData?.map(earning => ({
-        id: earning.id,
-        gross_amount: parseFloat(earning.gross_amount),
-        platform_fee: parseFloat(earning.platform_fee),
-        net_amount: parseFloat(earning.net_amount),
-        status: earning.status,
-        created_at: earning.created_at,
-        booking_id: earning.booking_id
-      })) || [];
-
-      setBookings(processedBookings);
-      setEarnings(processedEarnings);
-
-      // Calculate stats
       const totalEarnings = processedEarnings
         .filter(e => e.status === 'paid')
         .reduce((sum, e) => sum + e.net_amount, 0);
@@ -202,7 +213,7 @@ const ProviderDashboard: React.FC = () => {
 
     } catch (error) {
       console.error('Error fetching provider data:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error('Failed to load some dashboard data');
     } finally {
       setLoading(false);
     }
@@ -465,6 +476,9 @@ const ProviderDashboard: React.FC = () => {
                             </div>
                           </div>
                         ))}
+                        {bookings.length === 0 && (
+                          <p className="text-gray-500 text-center py-4">No bookings yet</p>
+                        )}
                       </div>
                     </div>
 
@@ -677,7 +691,7 @@ const ProviderDashboard: React.FC = () => {
                     </div>
                     <div className="bg-white border border-gray-200 rounded-lg p-4">
                       <div className="text-2xl font-bold text-blue-600">
-                        {stats.completedBookings > 0 
+                        ₹{stats.completedBookings > 0 
                           ? Math.round(stats.totalEarnings / stats.completedBookings)
                           : 0}
                       </div>
