@@ -196,79 +196,69 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
       
       {/* Enhanced Popular Locations Dropdown */}
       {showSuggestions && !inputValue && (
-        <div className="fixed inset-0 z-[9999] overflow-y-auto" style={{ pointerEvents: 'none' }}>
-          <div className="min-h-screen px-4 text-center">
-            <div className="fixed inset-0 bg-black bg-opacity-30" style={{ pointerEvents: 'auto' }}></div>
-            
-            <div 
-              className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
-              style={{ 
-                pointerEvents: 'auto',
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)'
-              }}
-            >
-              <div className="p-6">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full p-2 mr-3">
-                      <Navigation className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Select Your Location</h3>
-                      <p className="text-xs text-gray-500">Choose from popular locations or search</p>
-                    </div>
+        <div className="fixed inset-0 bg-black bg-opacity-30 z-[9999]" onClick={() => setShowSuggestions(false)}>
+          <div 
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full p-2 mr-3">
+                    <Navigation className="h-5 w-5 text-white" />
                   </div>
-                  <button 
-                    onClick={() => setShowSuggestions(false)}
-                    className="text-gray-400 hover:text-gray-500"
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Select Your Location</h3>
+                    <p className="text-xs text-gray-500">Choose from popular locations or search</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowSuggestions(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <span className="sr-only">Close</span>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Location List */}
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {popularLocations.map((location, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleLocationSelect(location.name)}
+                    className="w-full flex items-center justify-between p-3 hover:bg-blue-50 rounded-lg transition-colors text-left group"
                   >
-                    <span className="sr-only">Close</span>
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <div className="flex items-center">
+                      <div className="bg-blue-100 rounded-full p-2 mr-3 group-hover:bg-blue-200 transition-colors">
+                        <MapPin className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900 group-hover:text-blue-600">
+                          {location.name}
+                        </div>
+                        <div className="text-sm text-gray-500">{location.type}</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <div className="text-xs text-gray-400">{location.distance}</div>
+                      <div className="flex items-center text-xs text-green-600 mt-1">
+                        <Clock className="h-3 w-3 mr-1" />
+                        <span>30 min response</span>
+                      </div>
+                    </div>
                   </button>
-                </div>
-                
-                {/* Location List */}
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {popularLocations.map((location, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => handleLocationSelect(location.name)}
-                      className="w-full flex items-center justify-between p-3 hover:bg-blue-50 rounded-lg transition-colors text-left group"
-                    >
-                      <div className="flex items-center">
-                        <div className="bg-blue-100 rounded-full p-2 mr-3 group-hover:bg-blue-200 transition-colors">
-                          <MapPin className="h-4 w-4 text-blue-600" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900 group-hover:text-blue-600">
-                            {location.name}
-                          </div>
-                          <div className="text-sm text-gray-500">{location.type}</div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <div className="text-xs text-gray-400">{location.distance}</div>
-                        <div className="flex items-center text-xs text-green-600 mt-1">
-                          <Clock className="h-3 w-3 mr-1" />
-                          <span>30 min response</span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Footer */}
-                <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-                  <div className="text-xs text-gray-500">
-                    Powered by Google Maps • Precise location matching
-                  </div>
+                ))}
+              </div>
+              
+              {/* Footer */}
+              <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+                <div className="text-xs text-gray-500">
+                  Powered by Google Maps • Precise location matching
                 </div>
               </div>
             </div>

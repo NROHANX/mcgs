@@ -11,7 +11,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }) => {
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
 
   // Demo services for autocomplete
   const demoServices = [
@@ -22,16 +21,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }) => {
     { name: 'Mechanic', icon: <Wrench className="h-5 w-5" />, description: 'Vehicle repair & maintenance', rating: 4.7, providers: 32 }
   ];
 
-  // Popular locations for demo
-  const popularLocations = [
-    'Sitabuldi, Nagpur',
-    'Dharampeth, Nagpur', 
-    'Sadar, Nagpur',
-    'Itwari, Nagpur',
-    'Civil Lines, Nagpur',
-    'Wardha Road, Nagpur'
-  ];
-
   const filteredServices = demoServices.filter(service =>
     service.name.toLowerCase().includes(query.toLowerCase()) ||
     service.description.toLowerCase().includes(query.toLowerCase())
@@ -40,13 +29,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setShowSuggestions(false);
-    setShowLocationDropdown(false);
     onSearch(query, location);
   };
 
   const handleLocationChange = (value: string, placeDetails?: google.maps.places.PlaceResult) => {
     setLocation(value);
-    setShowLocationDropdown(false);
     
     if (placeDetails) {
       console.log('Selected location:', placeDetails);
@@ -57,17 +44,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }) => {
     setQuery(serviceName);
     setShowSuggestions(false);
     onSearch(serviceName, location);
-  };
-
-  const handleLocationSelect = (locationName: string) => {
-    setLocation(locationName);
-    setShowLocationDropdown(false);
-  };
-
-  const handleLocationFocus = () => {
-    if (!location) {
-      setShowLocationDropdown(true);
-    }
   };
 
   return (
