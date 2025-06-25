@@ -500,16 +500,16 @@ const Profile: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Name *
+                            Business/Service Name *
                           </label>
                           <div className="relative">
-                            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                            <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                             <input
                               type="text"
                               value={profile.name}
                               onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="Enter your full name"
+                              placeholder="Enter your business name"
                             />
                           </div>
                         </div>
@@ -531,7 +531,7 @@ const Profile: React.FC = () => {
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Phone
+                            Contact Number *
                           </label>
                           <div className="relative">
                             <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -547,7 +547,7 @@ const Profile: React.FC = () => {
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Location
+                            Service Location *
                           </label>
                           <GoogleMapsAutocomplete
                             value={profile.location}
@@ -556,7 +556,7 @@ const Profile: React.FC = () => {
                             className="text-sm"
                           />
                           <p className="text-xs text-gray-500 mt-1">
-                            🗺️ Use Google Maps to select your precise location
+                            🗺️ Use Google Maps to select your precise service location for better customer matching
                           </p>
                         </div>
 
@@ -571,17 +571,17 @@ const Profile: React.FC = () => {
                               onChange={(e) => setProfile({ ...profile, completeAddress: e.target.value })}
                               rows={3}
                               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                              placeholder="Enter your complete address including house number, street, area, city, state, pincode"
+                              placeholder="Enter your complete business address including house/shop number, street, area, city, state, pincode"
                             />
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Provide your full address for accurate service delivery
+                            Provide your full business address for accurate customer navigation
                           </p>
                         </div>
 
                         <div className="md:col-span-2">
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Bio
+                            Description
                           </label>
                           <div className="relative">
                             <Briefcase className="absolute left-3 top-3 text-gray-400 h-5 w-5" />
@@ -590,7 +590,7 @@ const Profile: React.FC = () => {
                               onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                               rows={4}
                               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                              placeholder="Tell us about yourself..."
+                              placeholder="Describe your services, expertise, and what sets you apart from others..."
                             />
                           </div>
                         </div>
