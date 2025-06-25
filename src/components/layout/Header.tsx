@@ -56,7 +56,7 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
               <h1 className="text-2xl font-bold text-blue-600">
                 <span className="text-red-500">Max Care</span> <span className="text-sky-500">Grand Services</span> (<span className="text-red-500 font-extrabold">M</span><span className="text-red-500 font-extrabold">C</span><span className="text-sky-500 font-extrabold">G</span><span className="text-sky-500 font-extrabold">S</span>)
               </h1>
-              <p className="text-base text-gray-600 font-medium">We are near you</p>
+              <p className="text-lg text-gray-600 font-semibold">We are near you</p>
             </div>
           </button>
 
