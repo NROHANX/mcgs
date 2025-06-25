@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
-import { MapPin, Loader, Navigation, Star, Clock } from 'lucide-react';
+import { MapPin, Loader, Navigation, Star, Clock, X } from 'lucide-react';
 
 interface GoogleMapsAutocompleteProps {
   value: string;
@@ -70,10 +70,11 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
   };
 
   const handleBlur = () => {
-    // Delay hiding suggestions to allow for clicks
+    // Don't hide suggestions immediately to allow for clicking on them
     setTimeout(() => {
-      setIsFocused(false);
-      setShowSuggestions(false);
+      if (!showSuggestions) {
+        setIsFocused(false);
+      }
     }, 200);
   };
 
@@ -82,6 +83,10 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
     setShowSuggestions(false);
     setIsFocused(false);
     onChange(locationName);
+  };
+
+  const handleCloseModal = () => {
+    setShowSuggestions(false);
   };
 
   // Update input value when prop value changes
@@ -108,39 +113,6 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
           <span className="text-xs text-red-500">Maps unavailable</span>
         </div>
-        
-        {/* Popular Locations Fallback */}
-        {showSuggestions && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 z-[9999] max-h-80 overflow-y-auto">
-            <div className="p-4">
-              <div className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                <MapPin className="h-4 w-4 mr-2 text-blue-500" />
-                Popular Locations
-              </div>
-              {popularLocations.map((location, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => handleLocationSelect(location.name)}
-                  className="w-full flex items-center justify-between p-3 hover:bg-blue-50 rounded-lg transition-colors text-left group"
-                >
-                  <div className="flex items-center">
-                    <div className="bg-blue-100 rounded-full p-2 mr-3 group-hover:bg-blue-200 transition-colors">
-                      <MapPin className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900 group-hover:text-blue-600">
-                        {location.name}
-                      </div>
-                      <div className="text-sm text-gray-500">{location.type}</div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-400">{location.distance}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -195,10 +167,10 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
       </div>
       
       {/* Enhanced Popular Locations Dropdown */}
-      {showSuggestions && !inputValue && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 z-[9999]" onClick={() => setShowSuggestions(false)}>
+      {showSuggestions && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 z-[9999] flex items-center justify-center" onClick={handleCloseModal}>
           <div 
-            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto m-4"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
@@ -214,13 +186,10 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
                   </div>
                 </div>
                 <button 
-                  onClick={() => setShowSuggestions(false)}
-                  className="text-gray-400 hover:text-gray-500"
+                  onClick={handleCloseModal}
+                  className="text-gray-400 hover:text-gray-500 transition-colors"
                 >
-                  <span className="sr-only">Close</span>
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="h-5 w-5" />
                 </button>
               </div>
               
