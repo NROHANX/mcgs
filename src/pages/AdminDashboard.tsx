@@ -28,11 +28,12 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
-import { supabase, User as UserType, Booking, Contact, ServiceProvider } from '../lib/supabase';
+import { supabase, User as UserType, Contact, ServiceProvider, ServiceBooking, BookingAssignment } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
-interface BookingWithDetails extends Booking {
+interface BookingWithDetails extends ServiceBooking {
   assigned_provider?: ServiceProvider;
+  assignment?: BookingAssignment;
 }
 
 const AdminDashboard: React.FC = () => {
@@ -99,10 +100,16 @@ const AdminDashboard: React.FC = () => {
       if (providersError) throw providersError;
       setProviders(providersData || []);
 
-      // Fetch bookings
+      // Fetch service bookings (main booking table)
       const { data: bookingsData, error: bookingsError } = await supabase
-        .from('bookings')
-        .select('*')
+        .from('service_bookings')
+        .select(`
+          *,
+          assignment:booking_assignments(
+            *,
+            provider:service_providers(*)
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (bookingsError) throw bookingsError;
@@ -123,7 +130,7 @@ const AdminDashboard: React.FC = () => {
       const pendingBookings = (bookingsData || []).filter(b => b.status === 'pending').length;
       const assignedBookings = (bookingsData || []).filter(b => b.status === 'assigned').length;
       const completedBookings = (bookingsData || []).filter(b => b.status === 'completed').length;
-      const availableProviders = (providersData || []).filter(p => p.is_available).length;
+      const availableProviders = (providersData || []).filter(p => p.available).length;
 
       setStats({
         totalUsers: (usersData || []).length,
@@ -164,15 +171,28 @@ const AdminDashboard: React.FC = () => {
 
   const handleAssignProvider = async (bookingId: string, providerId: string) => {
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ 
-          provider_id: providerId,
-          status: 'assigned'
-        })
+      // Create booking assignment
+      const { error: assignmentError } = await supabase
+        .from('booking_assignments')
+        .insert([
+          {
+            booking_id: bookingId,
+            provider_id: providerId,
+            assigned_by: user?.id,
+            assignment_type: 'manual',
+            provider_accepted: false
+          }
+        ]);
+
+      if (assignmentError) throw assignmentError;
+
+      // Update booking status
+      const { error: bookingError } = await supabase
+        .from('service_bookings')
+        .update({ status: 'assigned' })
         .eq('id', bookingId);
 
-      if (error) throw error;
+      if (bookingError) throw bookingError;
 
       toast.success('Technician assigned successfully!');
       setShowAssignModal(false);
@@ -186,12 +206,12 @@ const AdminDashboard: React.FC = () => {
   const openAssignModal = async (booking: BookingWithDetails) => {
     setSelectedBooking(booking);
     
-    // Fetch available providers for this service
+    // Fetch available providers
     const { data: providers, error } = await supabase
       .from('service_providers')
       .select('*')
-      .eq('is_available', true)
-      .order('rating', { ascending: false });
+      .eq('available', true)
+      .order('average_rating', { ascending: false });
 
     if (error) {
       toast.error('Failed to load available technicians');
@@ -222,6 +242,21 @@ const AdminDashboard: React.FC = () => {
         return 'bg-green-100 text-green-800';
       case 'cancelled':
         return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getUrgencyColor = (urgency: string) => {
+    switch (urgency) {
+      case 'urgent':
+        return 'bg-red-100 text-red-800';
+      case 'high':
+        return 'bg-orange-100 text-orange-800';
+      case 'normal':
+        return 'bg-blue-100 text-blue-800';
+      case 'low':
+        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -401,7 +436,12 @@ const AdminDashboard: React.FC = () => {
                             <div>
                               <p className="font-medium text-gray-900">{booking.service_name}</p>
                               <p className="text-sm text-gray-500">{booking.customer_name} • {booking.customer_phone}</p>
-                              <p className="text-xs text-gray-400">{new Date(booking.created_at).toLocaleDateString()}</p>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <span className={`text-xs px-2 py-1 rounded-full ${getUrgencyColor(booking.urgency)}`}>
+                                  {booking.urgency}
+                                </span>
+                                <p className="text-xs text-gray-400">{new Date(booking.created_at).toLocaleDateString()}</p>
+                              </div>
                             </div>
                             <Button
                               size="sm"
@@ -496,7 +536,7 @@ const AdminDashboard: React.FC = () => {
                             Contact & Location
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status & Date
+                            Status & Priority
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
@@ -536,11 +576,14 @@ const AdminDashboard: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div>
+                              <div className="space-y-2">
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
                                   {booking.status.replace('_', ' ')}
                                 </span>
-                                <div className="text-xs text-gray-500 mt-1">
+                                <span className={`block px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(booking.urgency)}`}>
+                                  {booking.urgency} priority
+                                </span>
+                                <div className="text-xs text-gray-500">
                                   {booking.preferred_date ? new Date(booking.preferred_date).toLocaleDateString() : 'Flexible'}
                                 </div>
                                 <div className="text-xs text-gray-400">
@@ -643,8 +686,8 @@ const AdminDashboard: React.FC = () => {
                                   <Wrench className="h-5 w-5 text-blue-600" />
                                 </div>
                                 <div>
-                                  <div className="text-sm font-medium text-gray-900">{provider.business_name}</div>
-                                  <div className="text-sm text-gray-500">{provider.phone}</div>
+                                  <div className="text-sm font-medium text-gray-900">{provider.name}</div>
+                                  <div className="text-sm text-gray-500">{provider.contact}</div>
                                 </div>
                               </div>
                             </td>
@@ -655,18 +698,18 @@ const AdminDashboard: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                provider.is_available 
+                                provider.available 
                                   ? 'bg-green-100 text-green-800' 
                                   : 'bg-red-100 text-red-800'
                               }`}>
-                                {provider.is_available ? 'Available' : 'Busy'}
+                                {provider.available ? 'Available' : 'Busy'}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                                <span className="text-sm text-gray-900">{provider.rating || 0}</span>
-                                <span className="text-sm text-gray-500 ml-2">({provider.total_jobs || 0} jobs)</span>
+                                <span className="text-sm text-gray-900">{provider.average_rating || 0}</span>
+                                <span className="text-sm text-gray-500 ml-2">({provider.review_count || 0} reviews)</span>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -786,6 +829,7 @@ const AdminDashboard: React.FC = () => {
                               <span>{contact.name}</span>
                               <span>{contact.email}</span>
                               {contact.phone && <span>{contact.phone}</span>}
+                              {contact.service_type && <span>Service: {contact.service_type}</span>}
                               <span>{new Date(contact.created_at).toLocaleDateString()}</span>
                             </div>
                           </div>
@@ -813,6 +857,14 @@ const AdminDashboard: React.FC = () => {
                 <p className="text-gray-600 mt-1">
                   Service: {selectedBooking.service_name} for {selectedBooking.customer_name}
                 </p>
+                <div className="flex items-center space-x-2 mt-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(selectedBooking.urgency)}`}>
+                    {selectedBooking.urgency} priority
+                  </span>
+                  {selectedBooking.estimated_price && selectedBooking.estimated_price > 0 && (
+                    <span className="text-sm text-gray-600">Budget: ₹{selectedBooking.estimated_price}</span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => setShowAssignModal(false)}
@@ -838,12 +890,15 @@ const AdminDashboard: React.FC = () => {
                             <Wrench className="h-6 w-6 text-blue-600" />
                           </div>
                           <div>
-                            <h4 className="font-medium text-gray-900">{provider.business_name}</h4>
+                            <h4 className="font-medium text-gray-900">{provider.name}</h4>
                             <p className="text-sm text-gray-500">{provider.category}</p>
                             <div className="flex items-center text-sm text-gray-400 mt-1">
                               <Star className="h-4 w-4 mr-1 text-yellow-400" />
-                              {provider.rating || 0} ({provider.total_jobs || 0} jobs)
+                              {provider.average_rating || 0} ({provider.review_count || 0} reviews)
                             </div>
+                            {provider.location && (
+                              <p className="text-xs text-gray-400 mt-1">{provider.location}</p>
+                            )}
                           </div>
                         </div>
                         <div className="text-right">

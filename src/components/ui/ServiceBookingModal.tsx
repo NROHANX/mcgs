@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { X, Calendar, Clock, MapPin, Phone, Mail, User, FileText, AlertTriangle } from 'lucide-react';
 import Button from './Button';
-import GoogleMapsAutocomplete from './GoogleMapsAutocomplete';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -29,7 +28,10 @@ const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
     customerEmail: user?.email || '',
     serviceAddress: '',
     preferredDate: '',
-    amount: 0
+    preferredTimeSlot: 'morning',
+    urgency: 'normal' as 'low' | 'normal' | 'high' | 'urgent',
+    estimatedPrice: 0,
+    specialInstructions: ''
   });
 
   React.useEffect(() => {
@@ -55,11 +57,37 @@ const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
     setLoading(true);
 
     try {
+      // First, try to find the service category
+      let serviceCategoryId = null;
+      
+      if (serviceCategory) {
+        const { data: categoryData } = await supabase
+          .from('service_categories')
+          .select('id')
+          .eq('name', serviceCategory)
+          .single();
+        
+        serviceCategoryId = categoryData?.id;
+      }
+
+      // If no category found, create a default one or use a fallback
+      if (!serviceCategoryId) {
+        const { data: defaultCategory } = await supabase
+          .from('service_categories')
+          .select('id')
+          .eq('name', 'General')
+          .single();
+        
+        serviceCategoryId = defaultCategory?.id;
+      }
+
+      // Insert into service_bookings table (the main booking table according to schema)
       const { error } = await supabase
-        .from('bookings')
+        .from('service_bookings')
         .insert([
           {
             customer_id: user.id,
+            service_category_id: serviceCategoryId,
             service_name: formData.serviceName,
             description: formData.description,
             customer_name: formData.customerName,
@@ -67,7 +95,10 @@ const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
             customer_email: formData.customerEmail,
             service_address: formData.serviceAddress,
             preferred_date: formData.preferredDate || null,
-            amount: formData.amount,
+            preferred_time_slot: formData.preferredTimeSlot,
+            urgency: formData.urgency,
+            estimated_price: formData.estimatedPrice,
+            special_instructions: formData.specialInstructions,
             status: 'pending'
           }
         ]);
@@ -86,7 +117,10 @@ const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
         customerEmail: user?.email || '',
         serviceAddress: '',
         preferredDate: '',
-        amount: 0
+        preferredTimeSlot: 'morning',
+        urgency: 'normal',
+        estimatedPrice: 0,
+        specialInstructions: ''
       });
       
       onClose();
@@ -96,10 +130,6 @@ const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLocationChange = (value: string) => {
-    setFormData({ ...formData, serviceAddress: value });
   };
 
   return (
@@ -148,6 +178,38 @@ const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Describe the issue or service needed in detail..."
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Urgency Level
+                </label>
+                <select
+                  value={formData.urgency}
+                  onChange={(e) => setFormData({ ...formData, urgency: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="low">Low - Can wait a few days</option>
+                  <option value="normal">Normal - Within 1-2 days</option>
+                  <option value="high">High - Same day preferred</option>
+                  <option value="urgent">Urgent - Immediate attention needed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Estimated Budget (₹)
+                </label>
+                <input
+                  type="number"
+                  value={formData.estimatedPrice}
+                  onChange={(e) => setFormData({ ...formData, estimatedPrice: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
             </div>
           </div>
 
@@ -254,18 +316,37 @@ const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estimated Amount (₹)
+                  Preferred Time Slot
                 </label>
-                <input
-                  type="number"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="0"
-                  min="0"
-                />
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <select
+                    value={formData.preferredTimeSlot}
+                    onChange={(e) => setFormData({ ...formData, preferredTimeSlot: e.target.value })}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="morning">Morning (9 AM - 12 PM)</option>
+                    <option value="afternoon">Afternoon (12 PM - 4 PM)</option>
+                    <option value="evening">Evening (4 PM - 7 PM)</option>
+                    <option value="flexible">Flexible</option>
+                  </select>
+                </div>
               </div>
             </div>
+          </div>
+
+          {/* Special Instructions */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Special Instructions
+            </label>
+            <textarea
+              value={formData.specialInstructions}
+              onChange={(e) => setFormData({ ...formData, specialInstructions: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Any special instructions or requirements..."
+            />
           </div>
 
           {/* Important Notice */}

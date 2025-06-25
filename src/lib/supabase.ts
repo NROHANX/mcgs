@@ -23,21 +23,51 @@ export interface User {
 export interface ServiceProvider {
   id: string;
   user_id: string;
-  business_name: string;
+  name: string;
   category: string;
+  subcategory?: string;
   description?: string;
-  phone?: string;
-  address?: string;
-  is_available: boolean;
-  rating: number;
-  total_jobs: number;
+  image?: string;
+  contact?: string;
+  location?: string;
+  complete_address?: string;
+  available: boolean;
+  average_rating: number;
+  review_count: number;
+  created_at: string;
+}
+
+export interface Service {
+  id: string;
+  provider_id: string;
+  name: string;
+  description?: string;
+  price?: string;
+  estimated_time?: string;
   created_at: string;
 }
 
 export interface Booking {
   id: string;
-  customer_id: string;
   provider_id?: string;
+  customer_id: string;
+  service_name: string;
+  date?: string;
+  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+  amount: number;
+  created_at: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  service_address: string;
+  preferred_date?: string;
+  description?: string;
+}
+
+export interface ServiceBooking {
+  id: string;
+  customer_id: string;
+  service_category_id: string;
   service_name: string;
   description?: string;
   customer_name: string;
@@ -45,9 +75,13 @@ export interface Booking {
   customer_email: string;
   service_address: string;
   preferred_date?: string;
+  preferred_time_slot?: string;
+  urgency: 'low' | 'normal' | 'high' | 'urgent';
+  estimated_price?: number;
   status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
-  amount: number;
+  special_instructions?: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Contact {
@@ -57,5 +91,53 @@ export interface Contact {
   phone?: string;
   subject: string;
   message: string;
+  service_type?: string;
+  created_at: string;
+}
+
+export interface Review {
+  id: string;
+  provider_id: string;
+  user_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  category: 'technical' | 'billing' | 'general' | 'booking' | 'account';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  assigned_to?: string;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string;
+}
+
+export interface ServiceCategory {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  base_price?: number;
+  estimated_duration?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface BookingAssignment {
+  id: string;
+  booking_id: string;
+  provider_id?: string;
+  assigned_by?: string;
+  assignment_type: 'manual' | 'automatic';
+  assigned_at: string;
+  provider_accepted: boolean;
+  provider_response_at?: string;
+  notes?: string;
   created_at: string;
 }

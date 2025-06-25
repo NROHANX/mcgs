@@ -16,15 +16,19 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
-import { supabase, ServiceProvider, Booking } from '../lib/supabase';
+import { supabase, ServiceProvider, ServiceBooking, BookingAssignment } from '../lib/supabase';
 import toast from 'react-hot-toast';
+
+interface BookingWithAssignment extends ServiceBooking {
+  assignment?: BookingAssignment;
+}
 
 const ProviderDashboard: React.FC = () => {
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'profile'>('overview');
   const [provider, setProvider] = useState<ServiceProvider | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<BookingWithAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalBookings: 0,
@@ -65,10 +69,12 @@ const ProviderDashboard: React.FC = () => {
           .insert([
             {
               user_id: user?.id,
-              business_name: userProfile?.full_name || 'My Business',
+              name: userProfile?.full_name || 'My Business',
               category: 'General',
               description: 'Professional service provider',
-              is_available: true
+              available: true,
+              average_rating: 0,
+              review_count: 0
             }
           ])
           .select()
@@ -80,23 +86,33 @@ const ProviderDashboard: React.FC = () => {
         setProvider(providerData);
       }
 
-      // Fetch bookings
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from('bookings')
-        .select('*')
+      // Fetch bookings assigned to this provider
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('booking_assignments')
+        .select(`
+          *,
+          booking:service_bookings(*)
+        `)
         .eq('provider_id', providerData?.id)
         .order('created_at', { ascending: false });
 
-      if (bookingsError) throw bookingsError;
-      setBookings(bookingsData || []);
+      if (assignmentsError) throw assignmentsError;
+
+      // Transform the data to match our interface
+      const bookingsWithAssignments = (assignmentsData || []).map(assignment => ({
+        ...assignment.booking,
+        assignment
+      }));
+
+      setBookings(bookingsWithAssignments);
 
       // Calculate stats
-      const totalBookings = (bookingsData || []).length;
-      const pendingBookings = (bookingsData || []).filter(b => b.status === 'pending').length;
-      const completedBookings = (bookingsData || []).filter(b => b.status === 'completed').length;
-      const totalEarnings = (bookingsData || [])
+      const totalBookings = bookingsWithAssignments.length;
+      const pendingBookings = bookingsWithAssignments.filter(b => b.status === 'assigned' && !b.assignment?.provider_accepted).length;
+      const completedBookings = bookingsWithAssignments.filter(b => b.status === 'completed').length;
+      const totalEarnings = bookingsWithAssignments
         .filter(b => b.status === 'completed')
-        .reduce((sum, b) => sum + b.amount, 0);
+        .reduce((sum, b) => sum + (b.estimated_price || 0), 0);
 
       setStats({
         totalBookings,
@@ -116,7 +132,7 @@ const ProviderDashboard: React.FC = () => {
   const updateBookingStatus = async (bookingId: string, newStatus: string) => {
     try {
       const { error } = await supabase
-        .from('bookings')
+        .from('service_bookings')
         .update({ status: newStatus })
         .eq('id', bookingId);
 
@@ -129,18 +145,46 @@ const ProviderDashboard: React.FC = () => {
     }
   };
 
+  const acceptBooking = async (assignmentId: string, bookingId: string) => {
+    try {
+      // Update assignment to accepted
+      const { error: assignmentError } = await supabase
+        .from('booking_assignments')
+        .update({ 
+          provider_accepted: true,
+          provider_response_at: new Date().toISOString()
+        })
+        .eq('id', assignmentId);
+
+      if (assignmentError) throw assignmentError;
+
+      // Update booking status to in_progress
+      const { error: bookingError } = await supabase
+        .from('service_bookings')
+        .update({ status: 'in_progress' })
+        .eq('id', bookingId);
+
+      if (bookingError) throw bookingError;
+
+      toast.success('Booking accepted successfully!');
+      fetchProviderData();
+    } catch (error) {
+      toast.error('Failed to accept booking');
+    }
+  };
+
   const toggleAvailability = async () => {
     if (!provider) return;
 
     try {
       const { error } = await supabase
         .from('service_providers')
-        .update({ is_available: !provider.is_available })
+        .update({ available: !provider.available })
         .eq('id', provider.id);
 
       if (error) throw error;
 
-      toast.success(`You are now ${!provider.is_available ? 'available' : 'unavailable'} for bookings`);
+      toast.success(`You are now ${!provider.available ? 'available' : 'unavailable'} for bookings`);
       fetchProviderData();
     } catch (error) {
       toast.error('Failed to update availability');
@@ -166,16 +210,16 @@ const ProviderDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Welcome {provider?.business_name}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Welcome {provider?.name}</h1>
               <p className="text-gray-600 mt-1">Service Provider Dashboard</p>
             </div>
             <div className="mt-4 sm:mt-0">
               <Button
                 onClick={toggleAvailability}
-                variant={provider?.is_available ? 'outline' : 'primary'}
-                icon={provider?.is_available ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                variant={provider?.available ? 'outline' : 'primary'}
+                icon={provider?.available ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
               >
-                {provider?.is_available ? 'Go Offline' : 'Go Online'}
+                {provider?.available ? 'Go Offline' : 'Go Online'}
               </Button>
             </div>
           </div>
@@ -195,7 +239,7 @@ const ProviderDashboard: React.FC = () => {
             <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Pending</p>
+                  <p className="text-sm font-medium text-gray-500">Pending Response</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.pendingBookings}</p>
                 </div>
                 <Clock className="h-8 w-8 text-orange-500" />
@@ -280,14 +324,23 @@ const ProviderDashboard: React.FC = () => {
                             <div>
                               <p className="font-medium">{booking.service_name}</p>
                               <p className="text-sm text-gray-500">{booking.customer_name}</p>
+                              <p className="text-xs text-gray-400">
+                                {booking.urgency} priority • {new Date(booking.created_at).toLocaleDateString()}
+                              </p>
                             </div>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              booking.status === 'pending' ? 'bg-orange-100 text-orange-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {booking.status}
-                            </span>
+                            <div className="text-right">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                booking.status === 'assigned' && !booking.assignment?.provider_accepted ? 'bg-orange-100 text-orange-800' :
+                                booking.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {booking.status === 'assigned' && !booking.assignment?.provider_accepted ? 'Needs Response' : booking.status}
+                              </span>
+                              {booking.estimated_price && booking.estimated_price > 0 && (
+                                <p className="text-xs text-gray-500 mt-1">₹{booking.estimated_price}</p>
+                              )}
+                            </div>
                           </div>
                         ))}
                         {bookings.length === 0 && (
@@ -301,17 +354,21 @@ const ProviderDashboard: React.FC = () => {
                       <div className="space-y-4">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Status</span>
-                          <span className={`font-medium ${provider?.is_available ? 'text-green-600' : 'text-red-600'}`}>
-                            {provider?.is_available ? 'Available' : 'Offline'}
+                          <span className={`font-medium ${provider?.available ? 'text-green-600' : 'text-red-600'}`}>
+                            {provider?.available ? 'Available' : 'Offline'}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Rating</span>
-                          <span className="font-medium">{provider?.rating || 0}/5</span>
+                          <span className="font-medium">{provider?.average_rating || 0}/5</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Total Jobs</span>
-                          <span className="font-medium">{provider?.total_jobs || 0}</span>
+                          <span className="text-gray-600">Total Reviews</span>
+                          <span className="font-medium">{provider?.review_count || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Category</span>
+                          <span className="font-medium">{provider?.category}</span>
                         </div>
                       </div>
                     </div>
@@ -328,13 +385,10 @@ const ProviderDashboard: React.FC = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Service
+                            Service & Customer
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Customer
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Date
+                            Details
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Status
@@ -348,42 +402,67 @@ const ProviderDashboard: React.FC = () => {
                         {bookings.map(booking => (
                           <tr key={booking.id}>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{booking.service_name}</div>
-                              <div className="text-sm text-gray-500">{booking.service_address}</div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{booking.service_name}</div>
+                                <div className="text-sm text-gray-500">{booking.customer_name}</div>
+                                <div className="text-sm text-gray-500">{booking.customer_phone}</div>
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{booking.customer_name}</div>
-                              <div className="text-sm text-gray-500">{booking.customer_phone}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {booking.preferred_date ? new Date(booking.preferred_date).toLocaleDateString() : 'Flexible'}
+                              <div className="text-sm text-gray-900">
+                                <div className="mb-1">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    booking.urgency === 'urgent' ? 'bg-red-100 text-red-800' :
+                                    booking.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
+                                    booking.urgency === 'normal' ? 'bg-blue-100 text-blue-800' :
+                                    'bg-green-100 text-green-800'
+                                  }`}>
+                                    {booking.urgency} priority
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {booking.preferred_date ? new Date(booking.preferred_date).toLocaleDateString() : 'Flexible'}
+                                </div>
+                                {booking.estimated_price && booking.estimated_price > 0 && (
+                                  <div className="text-xs text-gray-500">Budget: ₹{booking.estimated_price}</div>
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                booking.status === 'pending' ? 'bg-orange-100 text-orange-800' :
-                                'bg-red-100 text-red-800'
+                                booking.status === 'assigned' && !booking.assignment?.provider_accepted ? 'bg-orange-100 text-orange-800' :
+                                booking.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
                               }`}>
-                                {booking.status}
+                                {booking.status === 'assigned' && !booking.assignment?.provider_accepted ? 'Needs Response' : booking.status}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              {booking.status === 'pending' && (
+                              {booking.status === 'assigned' && !booking.assignment?.provider_accepted && (
                                 <div className="flex space-x-2">
                                   <Button
                                     size="sm"
-                                    onClick={() => updateBookingStatus(booking.id, 'completed')}
+                                    onClick={() => acceptBooking(booking.assignment!.id, booking.id)}
                                   >
-                                    Complete
+                                    Accept
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => updateBookingStatus(booking.id, 'cancelled')}
                                   >
-                                    Cancel
+                                    Decline
                                   </Button>
                                 </div>
+                              )}
+                              {booking.status === 'in_progress' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateBookingStatus(booking.id, 'completed')}
+                                >
+                                  Mark Complete
+                                </Button>
                               )}
                             </td>
                           </tr>
@@ -396,7 +475,7 @@ const ProviderDashboard: React.FC = () => {
                     <div className="text-center py-12">
                       <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings yet</h3>
-                      <p className="text-gray-600">You haven't received any bookings yet.</p>
+                      <p className="text-gray-600">You haven't been assigned any bookings yet.</p>
                     </div>
                   )}
                 </div>
@@ -414,7 +493,7 @@ const ProviderDashboard: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          value={provider.business_name}
+                          value={provider.name}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           readOnly
                         />
@@ -439,6 +518,30 @@ const ProviderDashboard: React.FC = () => {
                         <textarea
                           value={provider.description || ''}
                           rows={4}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          readOnly
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Contact
+                        </label>
+                        <input
+                          type="text"
+                          value={provider.contact || ''}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          readOnly
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Location
+                        </label>
+                        <input
+                          type="text"
+                          value={provider.location || ''}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           readOnly
                         />
