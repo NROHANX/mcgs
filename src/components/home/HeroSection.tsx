@@ -1,12 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import SearchBar from '../ui/SearchBar';
 import { Star, Users, CheckCircle, Zap, Sparkles, TrendingUp } from 'lucide-react';
+import ServiceBookingModal from '../ui/ServiceBookingModal';
 
 interface HeroSectionProps {
   onSearch: (query: string, location: string) => void;
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState('');
+
+  const handleServiceClick = (serviceName: string) => {
+    setSelectedService(serviceName);
+    setIsBookingModalOpen(true);
+  };
+
   return (
     <section className="relative bg-gradient-to-br from-blue-600 via-purple-700 to-indigo-800 text-white overflow-hidden min-h-screen flex items-center">
       {/* Dynamic Background Elements */}
@@ -68,30 +77,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
           </h1>
           
           <p className="text-xl md:text-2xl text-blue-100 mb-10 max-w-4xl mx-auto leading-relaxed">
-            Connect with trusted RO technicians, AC technicians, electricians, plumbers and more in your area
+            Book any service and we'll assign the best technician for your needs
           </p>
           
           <SearchBar onSearch={onSearch} className="max-w-4xl mx-auto mb-12" />
-          
-          {/* Enhanced Stats Row */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mt-16 max-w-4xl mx-auto">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 group">
-              <div className="text-3xl md:text-4xl font-black text-yellow-300 group-hover:scale-110 transition-transform">500+</div>
-              <div className="text-sm text-blue-200 font-medium">Verified Providers</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 group">
-              <div className="text-3xl md:text-4xl font-black text-purple-300 group-hover:scale-110 transition-transform">4.8★</div>
-              <div className="text-sm text-blue-200 font-medium">Average Rating</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 group">
-              <div className="text-3xl md:text-4xl font-black text-cyan-300 group-hover:scale-110 transition-transform">10K+</div>
-              <div className="text-sm text-blue-200 font-medium">Happy Customers</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 group">
-              <div className="text-3xl md:text-4xl font-black text-green-300 group-hover:scale-110 transition-transform">Always</div>
-              <div className="text-sm text-blue-200 font-medium">Support Available</div>
-            </div>
-          </div>
           
           {/* Popular Services */}
           <div className="mt-12 flex flex-wrap justify-center gap-4 text-sm">
@@ -106,11 +95,31 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
               <button 
                 key={index}
                 className={`bg-gradient-to-r ${service.color} text-white px-4 py-2 rounded-full hover:scale-105 transition-all duration-300 font-medium shadow-lg hover:shadow-xl`}
-                onClick={() => onSearch(service.name.toLowerCase(), '')}
+                onClick={() => handleServiceClick(service.name)}
               >
                 {service.name}
               </button>
             ))}
+          </div>
+          
+          {/* Enhanced Stats Row */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mt-16 max-w-4xl mx-auto">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 group">
+              <div className="text-3xl md:text-4xl font-black text-yellow-300 group-hover:scale-110 transition-transform">500+</div>
+              <div className="text-sm text-blue-200 font-medium">Verified Technicians</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 group">
+              <div className="text-3xl md:text-4xl font-black text-purple-300 group-hover:scale-110 transition-transform">4.8★</div>
+              <div className="text-sm text-blue-200 font-medium">Average Rating</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 group">
+              <div className="text-3xl md:text-4xl font-black text-cyan-300 group-hover:scale-110 transition-transform">10K+</div>
+              <div className="text-sm text-blue-200 font-medium">Happy Customers</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 group">
+              <div className="text-3xl md:text-4xl font-black text-green-300 group-hover:scale-110 transition-transform">Always</div>
+              <div className="text-sm text-blue-200 font-medium">Support Available</div>
+            </div>
           </div>
         </div>
       </div>
@@ -144,6 +153,13 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
           </path>
         </svg>
       </div>
+
+      <ServiceBookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        serviceName={selectedService}
+        serviceCategory={selectedService}
+      />
     </section>
   );
 };

@@ -1,7 +1,10 @@
 import React from 'react';
 import { Zap, Droplet, Wrench, Scissors, Palette, Trash, Flower, Monitor, ArrowRight, Settings, Hammer, Wind } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const ServicesBanner: React.FC = () => {
+  const navigate = useNavigate();
+
   const services = [
     { 
       icon: <Droplet className="h-8 w-8" />, 
@@ -61,6 +64,14 @@ const ServicesBanner: React.FC = () => {
     },
   ];
 
+  const handleServiceClick = (serviceName: string) => {
+    navigate('/services', { state: { serviceName } });
+  };
+
+  const handleViewAllClick = () => {
+    navigate('/services');
+  };
+
   return (
     <section className="py-16 bg-gradient-to-br from-gray-50 to-blue-50 relative overflow-hidden">
       {/* Background Decoration */}
@@ -88,6 +99,7 @@ const ServicesBanner: React.FC = () => {
             <div 
               key={index}
               className="group relative bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-3 cursor-pointer overflow-hidden"
+              onClick={() => handleServiceClick(service.name)}
             >
               {/* Background Pattern */}
               <div className={`absolute inset-0 ${service.bgPattern} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
@@ -113,7 +125,7 @@ const ServicesBanner: React.FC = () => {
                 {/* Hover Text Effect */}
                 <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
-                    Click to explore
+                    Book now
                   </div>
                 </div>
               </div>
@@ -126,7 +138,10 @@ const ServicesBanner: React.FC = () => {
         </div>
 
         <div className="text-center">
-          <div className="inline-flex items-center bg-white rounded-full px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group border-2 border-transparent hover:border-blue-200">
+          <div 
+            className="inline-flex items-center bg-white rounded-full px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group border-2 border-transparent hover:border-blue-200"
+            onClick={handleViewAllClick}
+          >
             <span className="text-gray-700 font-medium mr-2 group-hover:text-blue-600 transition-colors">View All Services</span>
             <div className="relative">
               <ArrowRight className="h-4 w-4 text-blue-600 group-hover:translate-x-1 transition-transform duration-300" />

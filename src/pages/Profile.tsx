@@ -26,7 +26,8 @@ import {
   MapPin,
   Heart,
   Home,
-  Briefcase
+  Briefcase,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
@@ -35,6 +36,7 @@ import Button from '../components/ui/Button';
 import GoogleMapsAutocomplete from '../components/ui/GoogleMapsAutocomplete';
 import SupportTicket from '../components/ui/SupportTicket';
 import CreateTicketModal from '../components/ui/CreateTicketModal';
+import ServiceBookingModal from '../components/ui/ServiceBookingModal';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -52,17 +54,18 @@ interface UserProfile {
   };
 }
 
-interface ServiceTaken {
+interface ServiceBooking {
   id: string;
   service_name: string;
-  provider_name: string;
-  provider_contact: string;
-  date: string;
+  service_address: string;
+  preferred_date: string;
+  preferred_time_slot: string;
   status: string;
-  amount: number;
-  rating?: number;
-  review?: string;
+  estimated_price: number;
+  urgency: string;
   created_at: string;
+  provider_name?: string;
+  provider_contact?: string;
 }
 
 interface SupportTicketData {
@@ -90,7 +93,7 @@ interface CustomerStats {
 const Profile: React.FC = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'profile' | 'services' | 'subscription' | 'support' | 'settings'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'bookings' | 'subscription' | 'support' | 'settings'>('profile');
   const [isProvider, setIsProvider] = useState(false);
   const [profile, setProfile] = useState<UserProfile>({
     name: '',
@@ -105,7 +108,7 @@ const Profile: React.FC = () => {
       smsAlerts: false
     }
   });
-  const [servicesTaken, setServicesTaken] = useState<ServiceTaken[]>([]);
+  const [serviceBookings, setServiceBookings] = useState<ServiceBooking[]>([]);
   const [supportTickets, setSupportTickets] = useState<SupportTicketData[]>([]);
   const [customerStats, setCustomerStats] = useState<CustomerStats>({
     totalServices: 0,
@@ -119,8 +122,10 @@ const Profile: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [isCreateTicketModalOpen, setIsCreateTicketModalOpen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedBooking, setSelectedBooking] = useState<ServiceBooking | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -173,59 +178,107 @@ const Profile: React.FC = () => {
         });
       }
 
-      // Fetch services taken by user with provider details
-      const { data: bookingsData } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          service_providers!inner(name, contact)
-        `)
+      // Fetch service bookings
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('service_bookings')
+        .select('*')
         .eq('customer_id', user?.id)
         .order('created_at', { ascending: false });
 
-      const processedServices = bookingsData?.map(booking => ({
-        id: booking.id,
-        service_name: booking.service_name,
-        provider_name: booking.service_providers?.name || 'Unknown',
-        provider_contact: booking.service_providers?.contact || '',
-        date: booking.date,
-        status: booking.status,
-        amount: parseFloat(booking.amount),
-        created_at: booking.created_at
-      })) || [];
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        setServiceBookings([]);
+      } else {
+        // For each booking, try to fetch assigned provider details
+        const processedBookings: ServiceBooking[] = [];
+        
+        if (bookingsData && bookingsData.length > 0) {
+          for (const booking of bookingsData) {
+            let providerName = undefined;
+            let providerContact = undefined;
+            
+            // Try to fetch assigned provider
+            try {
+              const { data: assignmentData, error: assignmentError } = await supabase
+                .from('booking_assignments')
+                .select('provider_id')
+                .eq('booking_id', booking.id)
+                .single();
+              
+              if (!assignmentError && assignmentData) {
+                // Fetch provider details
+                const { data: providerData, error: providerError } = await supabase
+                  .from('service_providers')
+                  .select('name, contact')
+                  .eq('id', assignmentData.provider_id)
+                  .single();
+                
+                if (!providerError && providerData) {
+                  providerName = providerData.name;
+                  providerContact = providerData.contact;
+                }
+              }
+            } catch (error) {
+              console.log('Could not fetch provider for booking:', booking.id);
+            }
 
-      setServicesTaken(processedServices);
+            processedBookings.push({
+              id: booking.id,
+              service_name: booking.service_name,
+              service_address: booking.service_address,
+              preferred_date: booking.preferred_date,
+              preferred_time_slot: booking.preferred_time_slot,
+              status: booking.status,
+              estimated_price: booking.estimated_price,
+              urgency: booking.urgency,
+              created_at: booking.created_at,
+              provider_name: providerName,
+              provider_contact: providerContact
+            });
+          }
+        }
+        
+        setServiceBookings(processedBookings);
+      }
 
       // Fetch support tickets
-      const { data: ticketsData } = await supabase
+      const { data: ticketsData, error: ticketsError } = await supabase
         .from('support_tickets')
         .select('*')
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
-      setSupportTickets(ticketsData || []);
+      if (ticketsError) {
+        console.error('Error fetching support tickets:', ticketsError);
+        setSupportTickets([]);
+      } else {
+        setSupportTickets(ticketsData || []);
+      }
 
       // Calculate customer statistics
-      const totalSpent = processedServices
+      const processedBookings = serviceBookings.length > 0 ? serviceBookings : [];
+      
+      const totalSpent = processedBookings
         .filter(s => s.status === 'completed')
-        .reduce((sum, s) => sum + s.amount, 0);
+        .reduce((sum, s) => sum + s.estimated_price, 0);
 
-      const completedServices = processedServices.filter(s => s.status === 'completed').length;
-      const pendingServices = processedServices.filter(s => s.status === 'pending').length;
-      const cancelledServices = processedServices.filter(s => s.status === 'cancelled').length;
+      const completedServices = processedBookings.filter(s => s.status === 'completed').length;
+      const pendingServices = processedBookings.filter(s => ['pending', 'assigned'].includes(s.status)).length;
+      const cancelledServices = processedBookings.filter(s => s.status === 'cancelled').length;
 
       // Calculate favorite category (most booked service type)
       const categoryCount: { [key: string]: number } = {};
-      processedServices.forEach(service => {
+      processedBookings.forEach(service => {
         const category = service.service_name.split(' ')[0]; // Simple category extraction
         categoryCount[category] = (categoryCount[category] || 0) + 1;
       });
-      const favoriteCategory = Object.keys(categoryCount).reduce((a, b) => 
-        categoryCount[a] > categoryCount[b] ? a : b, 'None'
-      );
+      
+      const favoriteCategory = Object.keys(categoryCount).length > 0 
+        ? Object.keys(categoryCount).reduce((a, b) => categoryCount[a] > categoryCount[b] ? a : b, 'None')
+        : 'None';
 
       setCustomerStats({
-        totalServices: processedServices.length,
+        totalServices: processedBookings.length,
         completedServices,
         pendingServices,
         cancelledServices,
@@ -287,15 +340,15 @@ const Profile: React.FC = () => {
   };
 
   const exportServiceHistory = () => {
-    if (servicesTaken.length === 0) {
+    if (serviceBookings.length === 0) {
       toast.error('No service history to export');
       return;
     }
 
     const csvContent = [
-      'Service,Provider,Date,Status,Amount,Created',
-      ...servicesTaken.map(service => 
-        `"${service.service_name}","${service.provider_name}","${new Date(service.date).toLocaleDateString()}","${service.status}","₹${service.amount}","${new Date(service.created_at).toLocaleDateString()}"`
+      'Service,Date,Status,Amount,Created',
+      ...serviceBookings.map(service => 
+        `"${service.service_name}","${service.preferred_date ? new Date(service.preferred_date).toLocaleDateString() : 'Flexible'}","${service.status}","₹${service.estimated_price}","${new Date(service.created_at).toLocaleDateString()}"`
       )
     ].join('\n');
 
@@ -310,10 +363,9 @@ const Profile: React.FC = () => {
     toast.success('Service history exported successfully');
   };
 
-  const filteredServices = servicesTaken.filter(service => {
+  const filteredServices = serviceBookings.filter(service => {
     const matchesFilter = serviceFilter === 'all' || service.status === serviceFilter;
-    const matchesSearch = service.service_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         service.provider_name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = service.service_name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
@@ -321,12 +373,44 @@ const Profile: React.FC = () => {
     switch (status) {
       case 'pending':
         return <Clock className="h-5 w-5 text-orange-500" />;
+      case 'assigned':
+        return <User className="h-5 w-5 text-blue-500" />;
       case 'completed':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'cancelled':
         return <XCircle className="h-5 w-5 text-red-500" />;
       default:
         return null;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-orange-100 text-orange-800';
+      case 'assigned':
+        return 'bg-blue-100 text-blue-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getUrgencyColor = (urgency: string) => {
+    switch (urgency) {
+      case 'urgent':
+        return 'bg-red-100 text-red-800';
+      case 'high':
+        return 'bg-orange-100 text-orange-800';
+      case 'normal':
+        return 'bg-blue-100 text-blue-800';
+      case 'low':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -356,7 +440,7 @@ const Profile: React.FC = () => {
                     <User className="h-10 w-10 text-blue-600" />
                   </div>
                   <div className="text-white">
-                    <h1 className="text-3xl font-bold">{profile.name}</h1>
+                    <h1 className="text-3xl font-bold">{profile.name || 'Welcome'}</h1>
                     <p className="text-blue-100">{profile.email}</p>
                     <div className="flex items-center mt-2">
                       {isProvider && (
@@ -411,14 +495,14 @@ const Profile: React.FC = () => {
                   
                   <button
                     className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                      activeTab === 'services'
+                      activeTab === 'bookings'
                         ? 'bg-blue-100 text-blue-700 font-medium'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
-                    onClick={() => setActiveTab('services')}
+                    onClick={() => setActiveTab('bookings')}
                   >
                     <Calendar className="h-5 w-5 mr-3" />
-                    My Services
+                    My Bookings
                     {customerStats.pendingServices > 0 && (
                       <span className="ml-auto bg-orange-500 text-white text-xs rounded-full px-2 py-1">
                         {customerStats.pendingServices}
@@ -500,16 +584,16 @@ const Profile: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Business/Service Name *
+                            Full Name *
                           </label>
                           <div className="relative">
-                            <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                             <input
                               type="text"
                               value={profile.name}
                               onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="Enter your business name"
+                              placeholder="Enter your full name"
                             />
                           </div>
                         </div>
@@ -531,7 +615,7 @@ const Profile: React.FC = () => {
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Contact Number *
+                            Phone Number *
                           </label>
                           <div className="relative">
                             <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -547,7 +631,7 @@ const Profile: React.FC = () => {
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Service Location *
+                            Location
                           </label>
                           <GoogleMapsAutocomplete
                             value={profile.location}
@@ -556,7 +640,7 @@ const Profile: React.FC = () => {
                             className="text-sm"
                           />
                           <p className="text-xs text-gray-500 mt-1">
-                            🗺️ Use Google Maps to select your precise service location for better customer matching
+                            🗺️ Use Google Maps to select your precise location
                           </p>
                         </div>
 
@@ -571,28 +655,12 @@ const Profile: React.FC = () => {
                               onChange={(e) => setProfile({ ...profile, completeAddress: e.target.value })}
                               rows={3}
                               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                              placeholder="Enter your complete business address including house/shop number, street, area, city, state, pincode"
+                              placeholder="Enter your complete address including house/flat number, street, area, city, state, pincode"
                             />
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Provide your full business address for accurate customer navigation
+                            Provide your full address for accurate service delivery
                           </p>
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Description
-                          </label>
-                          <div className="relative">
-                            <Briefcase className="absolute left-3 top-3 text-gray-400 h-5 w-5" />
-                            <textarea
-                              value={profile.bio}
-                              onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                              rows={4}
-                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                              placeholder="Describe your services, expertise, and what sets you apart from others..."
-                            />
-                          </div>
                         </div>
                       </div>
 
@@ -634,10 +702,10 @@ const Profile: React.FC = () => {
                   </div>
                 )}
 
-                {activeTab === 'services' && (
+                {activeTab === 'bookings' && (
                   <div>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
-                      <h2 className="text-2xl font-bold mb-4 sm:mb-0">My Services</h2>
+                      <h2 className="text-2xl font-bold mb-4 sm:mb-0">My Service Bookings</h2>
                       <div className="flex flex-col sm:flex-row gap-3">
                         <Button
                           onClick={exportServiceHistory}
@@ -647,7 +715,7 @@ const Profile: React.FC = () => {
                           Export History
                         </Button>
                         <Button
-                          onClick={() => navigate('/')}
+                          onClick={() => setIsBookingModalOpen(true)}
                           icon={<Plus className="h-4 w-4" />}
                         >
                           Book New Service
@@ -667,7 +735,7 @@ const Profile: React.FC = () => {
                       </div>
                       <div className="bg-white border border-gray-200 rounded-lg p-4">
                         <div className="text-2xl font-bold text-orange-600">{customerStats.pendingServices}</div>
-                        <div className="text-sm text-gray-600">Pending</div>
+                        <div className="text-sm text-gray-600">Pending/Assigned</div>
                       </div>
                       <div className="bg-white border border-gray-200 rounded-lg p-4">
                         <div className="text-2xl font-bold text-red-600">{customerStats.cancelledServices}</div>
@@ -696,6 +764,7 @@ const Profile: React.FC = () => {
                         >
                           <option value="all">All Status</option>
                           <option value="pending">Pending</option>
+                          <option value="assigned">Assigned</option>
                           <option value="completed">Completed</option>
                           <option value="cancelled">Cancelled</option>
                         </select>
@@ -706,55 +775,67 @@ const Profile: React.FC = () => {
                       <div className="text-center py-12">
                         <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                         <p className="text-gray-500 mb-4">
-                          {servicesTaken.length === 0 ? 'No services taken yet' : 'No services match your filters'}
+                          {serviceBookings.length === 0 ? 'No services booked yet' : 'No services match your filters'}
                         </p>
-                        <Button onClick={() => navigate('/')}>
-                          Browse Services
+                        <Button onClick={() => setIsBookingModalOpen(true)}>
+                          Book Your First Service
                         </Button>
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {filteredServices.map(service => (
-                          <div key={service.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                        {filteredServices.map(booking => (
+                          <div key={booking.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                             <div className="flex flex-col lg:flex-row lg:items-center justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center mb-2">
-                                  {getStatusIcon(service.status)}
-                                  <h3 className="text-lg font-semibold ml-2">{service.service_name}</h3>
-                                  <span className={`ml-3 px-3 py-1 rounded-full text-sm font-medium ${
-                                    service.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                    service.status === 'pending' ? 'bg-orange-100 text-orange-800' :
-                                    'bg-red-100 text-red-800'
-                                  }`}>
-                                    {service.status}
+                                  {getStatusIcon(booking.status)}
+                                  <h3 className="text-lg font-semibold ml-2">{booking.service_name}</h3>
+                                  <span className={`ml-3 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
+                                    {booking.status}
+                                  </span>
+                                  <span className={`ml-2 px-3 py-1 rounded-full text-xs font-medium ${getUrgencyColor(booking.urgency)}`}>
+                                    {booking.urgency}
                                   </span>
                                 </div>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
                                   <div className="flex items-center">
-                                    <User className="h-4 w-4 mr-2" />
-                                    <span className="font-medium">Provider:</span> {service.provider_name}
+                                    <MapPin className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
+                                    <span className="truncate">{booking.service_address.substring(0, 30)}...</span>
                                   </div>
                                   <div className="flex items-center">
-                                    <Calendar className="h-4 w-4 mr-2" />
-                                    <span className="font-medium">Date:</span> {new Date(service.date).toLocaleDateString()}
+                                    <Calendar className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
+                                    <span>
+                                      {booking.preferred_date 
+                                        ? new Date(booking.preferred_date).toLocaleDateString() 
+                                        : 'Flexible'
+                                      } ({booking.preferred_time_slot})
+                                    </span>
                                   </div>
                                   <div className="flex items-center">
-                                    <CreditCard className="h-4 w-4 mr-2" />
-                                    <span className="font-medium">Amount:</span> ₹{service.amount}
+                                    <CreditCard className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
+                                    <span>₹{booking.estimated_price}</span>
                                   </div>
                                 </div>
 
-                                {service.provider_contact && (
+                                {booking.provider_name && (
                                   <div className="flex items-center text-sm text-gray-600 mb-2">
-                                    <Phone className="h-4 w-4 mr-2" />
-                                    <span className="font-medium">Contact:</span> {service.provider_contact}
+                                    <User className="h-4 w-4 mr-2 text-blue-500 flex-shrink-0" />
+                                    <span className="font-medium">Assigned to:</span> {booking.provider_name}
+                                    {booking.provider_contact && (
+                                      <a 
+                                        href={`tel:${booking.provider_contact}`}
+                                        className="ml-2 text-blue-600 hover:text-blue-800"
+                                      >
+                                        <Phone className="h-4 w-4" />
+                                      </a>
+                                    )}
                                   </div>
                                 )}
                               </div>
 
                               <div className="flex flex-col sm:flex-row gap-2 mt-4 lg:mt-0">
-                                {service.status === 'completed' && (
+                                {booking.status === 'completed' && (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -767,17 +848,18 @@ const Profile: React.FC = () => {
                                   size="sm"
                                   variant="outline"
                                   icon={<Eye className="h-4 w-4" />}
+                                  onClick={() => setSelectedBooking(booking)}
                                 >
                                   View Details
                                 </Button>
-                                {service.provider_contact && (
+                                {booking.status === 'pending' && (
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    icon={<Phone className="h-4 w-4" />}
-                                    onClick={() => window.open(`tel:${service.provider_contact}`)}
+                                    icon={<XCircle className="h-4 w-4" />}
+                                    className="text-red-600 border-red-300 hover:bg-red-50"
                                   >
-                                    Call Provider
+                                    Cancel
                                   </Button>
                                 )}
                               </div>
@@ -1015,10 +1097,145 @@ const Profile: React.FC = () => {
         </div>
       </main>
 
+      {/* Booking Details Modal */}
+      {selectedBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <h3 className="text-xl font-semibold">Booking Details</h3>
+                <button
+                  onClick={() => setSelectedBooking(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold text-blue-900">{selectedBooking.service_name}</h4>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedBooking.status)}`}>
+                      {selectedBooking.status}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex justify-between">
+                    <span className="text-sm text-blue-700">Estimated Price: ₹{selectedBooking.estimated_price}</span>
+                    <span className={`text-sm px-2 py-1 rounded-full ${getUrgencyColor(selectedBooking.urgency)}`}>
+                      {selectedBooking.urgency} priority
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">Service Details</h4>
+                    <div className="space-y-2">
+                      <div className="flex items-start">
+                        <MapPin className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
+                        <div>
+                          <p className="text-sm">{selectedBooking.service_address}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start">
+                        <Calendar className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
+                        <div>
+                          <p>
+                            {selectedBooking.preferred_date 
+                              ? new Date(selectedBooking.preferred_date).toLocaleDateString() 
+                              : 'Flexible date'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start">
+                        <Clock className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
+                        <div>
+                          <p className="capitalize">{selectedBooking.preferred_time_slot} time slot</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">Assigned Provider</h4>
+                    {selectedBooking.provider_name ? (
+                      <div className="space-y-2">
+                        <div className="flex items-start">
+                          <User className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
+                          <div>
+                            <p className="font-medium">{selectedBooking.provider_name}</p>
+                          </div>
+                        </div>
+                        {selectedBooking.provider_contact && (
+                          <div className="flex items-start">
+                            <Phone className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
+                            <div>
+                              <p>{selectedBooking.provider_contact}</p>
+                              <a 
+                                href={`tel:${selectedBooking.provider_contact}`}
+                                className="text-sm text-blue-600 hover:text-blue-800"
+                              >
+                                Call Provider
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 rounded-lg p-4 text-center">
+                        <p className="text-gray-600">
+                          {selectedBooking.status === 'pending' 
+                            ? 'A technician will be assigned to your booking soon.' 
+                            : 'No technician assigned yet.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex space-x-3 pt-4 border-t border-gray-200">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedBooking(null)}
+                    className="flex-1"
+                  >
+                    Close
+                  </Button>
+                  {selectedBooking.status === 'pending' && (
+                    <Button
+                      variant="outline"
+                      className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
+                      icon={<XCircle className="h-4 w-4" />}
+                    >
+                      Cancel Booking
+                    </Button>
+                  )}
+                  {selectedBooking.status === 'completed' && (
+                    <Button
+                      className="flex-1"
+                      icon={<Star className="h-4 w-4" />}
+                    >
+                      Rate Service
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <CreateTicketModal
         isOpen={isCreateTicketModalOpen}
         onClose={() => setIsCreateTicketModalOpen(false)}
         onTicketCreated={handleTicketCreated}
+      />
+
+      <ServiceBookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        serviceName=""
       />
 
       <Footer />

@@ -2,92 +2,74 @@ import React, { useState } from 'react';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import HeroSection from '../components/home/HeroSection';
-import ProviderList from '../components/providers/ProviderList';
 import FeatureSection from '../components/home/FeatureSection';
 import TestimonialSection from '../components/home/TestimonialSection';
-import ProviderDetails from '../components/providers/ProviderDetails';
 import ServicesBanner from '../components/home/ServicesBanner';
 import TrustBanner from '../components/home/TrustBanner';
 import CTABanner from '../components/home/CTABanner';
-import { providers, getProviderById, getProvidersByCategory, searchProviders } from '../data/mockData';
+import ServiceBookingModal from '../components/ui/ServiceBookingModal';
 
 const Home: React.FC = () => {
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-  const [filteredProviders, setFilteredProviders] = useState(providers);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categoryTitle, setCategoryTitle] = useState('Top Service Providers');
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
 
   const handleSearch = (query: string, location: string) => {
-    const results = searchProviders(query);
-    setFilteredProviders(results);
-    setCategoryTitle(`Search results for "${query}"`);
-    setSearchQuery(query);
-    setSelectedProvider(null);
+    // Open booking modal with the searched service
+    setSelectedService(query);
+    setSelectedCategory(query);
+    setIsBookingModalOpen(true);
   };
 
   const handleCategoryClick = (categoryId: string) => {
-    const categoryProviders = getProvidersByCategory(categoryId);
-    const categoryName = categoryProviders.length > 0 ? categoryProviders[0].category : '';
-    setFilteredProviders(categoryProviders);
-    setCategoryTitle(`${categoryName} Providers`);
-    setSearchQuery('');
-    setSelectedProvider(null);
+    // Map category IDs to service names
+    const categoryMap: { [key: string]: string } = {
+      '1': 'RO Technician',
+      '2': 'AC Technician', 
+      '3': 'Electrician',
+      '4': 'Plumber',
+      '5': 'Mechanic',
+      '6': 'Carpenter',
+      '7': 'Painter',
+      '8': 'Cleaner',
+      '9': 'Gardener'
+    };
+    
+    const serviceName = categoryMap[categoryId] || categoryId;
+    setSelectedService(serviceName);
+    setSelectedCategory(serviceName);
+    setIsBookingModalOpen(true);
   };
 
-  const handleProviderClick = (providerId: string) => {
-    setSelectedProvider(providerId);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleServiceBooking = (serviceName: string, category?: string) => {
+    setSelectedService(serviceName);
+    setSelectedCategory(category || serviceName);
+    setIsBookingModalOpen(true);
   };
-
-  const handleBackToResults = () => {
-    setSelectedProvider(null);
-  };
-
-  const resetToHome = () => {
-    setSelectedProvider(null);
-    setFilteredProviders(providers);
-    setSearchQuery('');
-    setCategoryTitle('Top Service Providers');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const selectedProviderData = selectedProvider ? getProviderById(selectedProvider) : null;
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header onCategoryClick={handleCategoryClick} />
       
       <main className="flex-grow">
-        {!selectedProvider && (
-          <>
-            <HeroSection onSearch={handleSearch} />
-            <ServicesBanner />
-            <div className="container mx-auto px-4">
-              <ProviderList 
-                providers={filteredProviders} 
-                onProviderClick={handleProviderClick} 
-                title={categoryTitle}
-                emptyMessage={searchQuery ? `No results found for "${searchQuery}"` : 'No providers available in this category'}
-              />
-              <FeatureSection />
-            </div>
-            <TrustBanner />
-            <CTABanner />
-            <div className="container mx-auto px-4">
-              <TestimonialSection />
-            </div>
-          </>
-        )}
-
-        {selectedProvider && selectedProviderData && (
-          <div className="container mx-auto px-4 py-8">
-            <ProviderDetails 
-              provider={selectedProviderData}
-              onBack={handleBackToResults}
-            />
-          </div>
-        )}
+        <HeroSection onSearch={handleSearch} />
+        <ServicesBanner />
+        <div className="container mx-auto px-4">
+          <FeatureSection />
+        </div>
+        <TrustBanner />
+        <CTABanner />
+        <div className="container mx-auto px-4">
+          <TestimonialSection />
+        </div>
       </main>
+      
+      <ServiceBookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        serviceName={selectedService}
+        serviceCategory={selectedCategory}
+      />
       
       <Footer />
     </div>

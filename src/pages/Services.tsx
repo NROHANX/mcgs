@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Droplet, 
   Wind, 
@@ -23,6 +22,7 @@ import {
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
+import ServiceBookingModal from '../components/ui/ServiceBookingModal';
 
 interface Service {
   id: string;
@@ -39,9 +39,10 @@ interface Service {
 }
 
 const Services: React.FC = () => {
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState('');
 
   const services: Service[] = [
     {
@@ -184,14 +185,9 @@ const Services: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const handleServiceClick = (serviceId: string) => {
-    // Navigate to home page and trigger category filter
-    navigate('/', { state: { categoryId: serviceId } });
-  };
-
   const handleBookService = (serviceName: string) => {
-    // Navigate to home page with search for this service
-    navigate('/', { state: { searchQuery: serviceName } });
+    setSelectedService(serviceName);
+    setIsBookingModalOpen(true);
   };
 
   return (
@@ -208,7 +204,7 @@ const Services: React.FC = () => {
                 Our <span className="text-yellow-400">Services</span>
               </h1>
               <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-3xl mx-auto">
-                Comprehensive home and professional services delivered by verified experts. 
+                Book professional services and we'll assign the best technician for your needs. 
                 Quality, reliability, and satisfaction guaranteed.
               </p>
               
@@ -220,7 +216,7 @@ const Services: React.FC = () => {
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
                   <div className="text-3xl font-bold text-yellow-400 mb-2">500+</div>
-                  <div className="text-blue-100">Verified Providers</div>
+                  <div className="text-blue-100">Verified Technicians</div>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
                   <div className="text-3xl font-bold text-yellow-400 mb-2">4.7★</div>
@@ -278,7 +274,7 @@ const Services: React.FC = () => {
                   Professional Services at Your Doorstep
                 </h2>
                 <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                  Choose from our wide range of verified professional services
+                  Book any service and we'll assign the best available technician for you
                 </p>
               </div>
 
@@ -314,7 +310,7 @@ const Services: React.FC = () => {
                         <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                           <div className="flex items-center">
                             <Users className="h-4 w-4 mr-1" />
-                            {service.providers} providers
+                            {service.providers} technicians
                           </div>
                           <div className="flex items-center">
                             <Star className="h-4 w-4 mr-1 text-yellow-500" />
@@ -347,21 +343,14 @@ const Services: React.FC = () => {
                         </ul>
                       </div>
                       
-                      {/* Action Buttons */}
-                      <div className="flex gap-3">
-                        <Button
-                          onClick={() => handleServiceClick(service.id)}
-                          variant="outline"
-                          className="flex-1 text-sm"
-                        >
-                          View Providers
-                        </Button>
+                      {/* Action Button */}
+                      <div>
                         <Button
                           onClick={() => handleBookService(service.name)}
-                          className="flex-1 text-sm bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 font-semibold"
                           icon={<ArrowRight className="h-4 w-4" />}
                         >
-                          Book Now
+                          Book {service.name}
                         </Button>
                       </div>
                     </div>
@@ -401,16 +390,16 @@ const Services: React.FC = () => {
                   <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6">
                     <CheckCircle className="h-8 w-8 text-blue-600" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Verified Professionals</h3>
-                  <p className="text-gray-600">All our service providers are thoroughly verified and background checked for your safety and peace of mind.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Verified Technicians</h3>
+                  <p className="text-gray-600">All our technicians are thoroughly verified and background checked for your safety and peace of mind.</p>
                 </div>
 
                 <div className="text-center p-8 bg-gray-50 rounded-2xl hover:shadow-lg transition-shadow">
                   <div className="bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6">
                     <Clock className="h-8 w-8 text-green-600" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Response</h3>
-                  <p className="text-gray-600">Fast booking and quick response times. Most services can be scheduled within 24 hours of your request.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Smart Assignment</h3>
+                  <p className="text-gray-600">Our system assigns the best available technician based on location, expertise, and availability.</p>
                 </div>
 
                 <div className="text-center p-8 bg-gray-50 rounded-2xl hover:shadow-lg transition-shadow">
@@ -431,19 +420,22 @@ const Services: React.FC = () => {
             <div className="max-w-3xl mx-auto text-white">
               <h2 className="text-4xl font-bold mb-6">Ready to Book a Service?</h2>
               <p className="text-xl text-blue-100 mb-8">
-                Get connected with verified professionals in your area. Quality service is just a click away.
+                Get connected with verified technicians in your area. Quality service is just a click away.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
-                  onClick={() => navigate('/')}
+                  onClick={() => {
+                    setSelectedService('');
+                    setIsBookingModalOpen(true);
+                  }}
                   size="lg"
                   className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
                   icon={<ArrowRight className="h-5 w-5" />}
                 >
-                  Browse All Providers
+                  Book Any Service
                 </Button>
                 <Button
-                  onClick={() => navigate('/contact')}
+                  onClick={() => window.open('/contact')}
                   size="lg"
                   variant="outline"
                   className="border-white text-white hover:bg-white hover:text-blue-800"
@@ -456,6 +448,13 @@ const Services: React.FC = () => {
           </div>
         </section>
       </main>
+
+      <ServiceBookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        serviceName={selectedService}
+        serviceCategory={selectedService}
+      />
 
       <Footer />
     </div>
