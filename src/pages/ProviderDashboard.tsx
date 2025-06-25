@@ -303,8 +303,8 @@ const ProviderDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Service Provider Dashboard</h1>
-              <p className="text-gray-600 mt-1">Welcome back, {profile?.name}</p>
+              <h1 className="text-3xl font-bold text-gray-900">Welcome MCGS</h1>
+              <p className="text-gray-600 mt-1">Service Provider Dashboard</p>
             </div>
             <div className="mt-4 sm:mt-0 flex space-x-3">
               <Button
