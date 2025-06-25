@@ -46,11 +46,24 @@ npm install
 cp .env.example .env
 ```
 
-Fill in your Supabase credentials in the `.env` file:
+Fill in your Supabase credentials in the `.env` file. You'll need both client-side and server-side variables:
+
+**Client-side variables (for frontend):**
 ```
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
+
+**Server-side variables (for backend/edge functions):**
+```
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
+
+**How to get these values:**
+- `VITE_SUPABASE_URL` and `SUPABASE_URL`: Your Supabase project URL (found in Project Settings > API)
+- `VITE_SUPABASE_ANON_KEY`: Your Supabase anon/public key (found in Project Settings > API)
+- `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key (found in Project Settings > API) - **Keep this secret!**
 
 4. Run the development server:
 ```bash
