@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogIn, LogOut } from 'lucide-react';
 import Button from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import AuthModal from '../auth/AuthModal';
+import { supabase } from '../../lib/supabase';
 
 interface HeaderProps {
   onCategoryClick: (categoryId: string) => void;
@@ -14,7 +15,36 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [isProvider, setIsProvider] = useState(false);
+  const [checkingProvider, setCheckingProvider] = useState(false);
   const { user, signOut } = useAuth();
+
+  // Check if user is a provider
+  useEffect(() => {
+    const checkProviderStatus = async () => {
+      if (user) {
+        setCheckingProvider(true);
+        try {
+          const { data: providerData } = await supabase
+            .from('service_providers')
+            .select('id')
+            .eq('user_id', user.id)
+            .single();
+
+          setIsProvider(!!providerData);
+        } catch (error) {
+          setIsProvider(false);
+        } finally {
+          setCheckingProvider(false);
+        }
+      } else {
+        setIsProvider(false);
+        setCheckingProvider(false);
+      }
+    };
+
+    checkProviderStatus();
+  }, [user]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -28,6 +58,18 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleProfileClick = () => {
+    setIsMenuOpen(false);
+    
+    if (isProvider) {
+      // If user is a provider, redirect to provider dashboard
+      navigate('/provider-dashboard');
+    } else {
+      // If user is a customer, redirect to customer profile
+      navigate('/profile');
+    }
   };
 
   const handleHomeClick = () => {
@@ -99,14 +141,14 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
-                <Link to="/profile">
-                  <Button 
-                    variant="outline" 
-                    icon={<User className="h-4 w-4" />}
-                  >
-                    My Profile
-                  </Button>
-                </Link>
+                <Button 
+                  variant="outline" 
+                  icon={<User className="h-4 w-4" />}
+                  onClick={handleProfileClick}
+                  disabled={checkingProvider}
+                >
+                  {checkingProvider ? 'Loading...' : (isProvider ? 'My Dashboard' : 'My Profile')}
+                </Button>
                 {isAdmin && (
                   <Link to="/admin">
                     <Button 
@@ -186,15 +228,15 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
           <div className="flex flex-col space-y-2 pt-2 pb-4">
             {user ? (
               <>
-                <Link to="/profile">
-                  <Button 
-                    variant="outline" 
-                    fullWidth 
-                    icon={<User className="h-4 w-4" />}
-                  >
-                    My Profile
-                  </Button>
-                </Link>
+                <Button 
+                  variant="outline" 
+                  fullWidth 
+                  icon={<User className="h-4 w-4" />}
+                  onClick={handleProfileClick}
+                  disabled={checkingProvider}
+                >
+                  {checkingProvider ? 'Loading...' : (isProvider ? 'My Dashboard' : 'My Profile')}
+                </Button>
                 {isAdmin && (
                   <Link to="/admin">
                     <Button 
