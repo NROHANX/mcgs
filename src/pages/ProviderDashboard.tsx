@@ -20,12 +20,14 @@ import {
   Eye,
   DollarSign,
   Award,
-  AlertTriangle
+  AlertTriangle,
+  Home
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
+import GoogleMapsAutocomplete from '../components/ui/GoogleMapsAutocomplete';
 import SupportTicket from '../components/ui/SupportTicket';
 import CreateTicketModal from '../components/ui/CreateTicketModal';
 import { supabase } from '../lib/supabase';
@@ -60,6 +62,7 @@ interface ProviderProfile {
   subcategory: string;
   description: string;
   location: string;
+  complete_address: string;
   contact: string;
   available: boolean;
   average_rating: number;
@@ -277,6 +280,37 @@ const ProviderDashboard: React.FC = () => {
       fetchProviderData();
     } catch (error) {
       toast.error('Failed to update availability');
+    }
+  };
+
+  const handleLocationChange = (value: string, placeDetails?: google.maps.places.PlaceResult) => {
+    if (profile) {
+      setProfile({ ...profile, location: value });
+    }
+  };
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) return;
+
+    try {
+      const { error } = await supabase
+        .from('service_providers')
+        .update({
+          name: profile.name,
+          contact: profile.contact,
+          location: profile.location,
+          complete_address: profile.complete_address,
+          description: profile.description
+        })
+        .eq('id', profile.id);
+
+      if (error) throw error;
+
+      toast.success('Profile updated successfully!');
+      fetchProviderData();
+    } catch (error) {
+      toast.error('Failed to update profile');
     }
   };
 
@@ -853,43 +887,76 @@ const ProviderDashboard: React.FC = () => {
                 <div className="max-w-2xl">
                   <h2 className="text-xl font-semibold mb-6">Profile Information</h2>
                   
-                  <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                  <form onSubmit={handleProfileUpdate} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Business Name
                         </label>
-                        <p className="text-gray-900">{profile.name}</p>
+                        <input
+                          type="text"
+                          value={profile.name}
+                          onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
                       </div>
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Category
                         </label>
-                        <p className="text-gray-900">{profile.category}</p>
+                        <input
+                          type="text"
+                          value={profile.category}
+                          disabled
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                        />
                       </div>
-
-                      {profile.subcategory && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Specialization
-                          </label>
-                          <p className="text-gray-900">{profile.subcategory}</p>
-                        </div>
-                      )}
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Location
                         </label>
-                        <p className="text-gray-900">{profile.location}</p>
+                        <GoogleMapsAutocomplete
+                          value={profile.location}
+                          onChange={handleLocationChange}
+                          placeholder="Search for your service location"
+                          className="text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          🗺️ Use Google Maps to select your precise service location
+                        </p>
                       </div>
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Contact
                         </label>
-                        <p className="text-gray-900">{profile.contact}</p>
+                        <input
+                          type="text"
+                          value={profile.contact}
+                          onChange={(e) => setProfile({ ...profile, contact: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Complete Address
+                        </label>
+                        <div className="relative">
+                          <Home className="absolute left-3 top-3 text-gray-400 h-5 w-5" />
+                          <textarea
+                            value={profile.complete_address || ''}
+                            onChange={(e) => setProfile({ ...profile, complete_address: e.target.value })}
+                            rows={3}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Enter your complete business address including house/shop number, street, area, city, state, pincode"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Provide your full business address for accurate customer navigation
+                        </p>
                       </div>
 
                       <div>
@@ -907,26 +974,29 @@ const ProviderDashboard: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Description
                         </label>
-                        <p className="text-gray-900">{profile.description}</p>
+                        <textarea
+                          value={profile.description}
+                          onChange={(e) => setProfile({ ...profile, description: e.target.value })}
+                          rows={4}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex space-x-4">
-                    <Button
-                      onClick={() => navigate('/provider-registration')}
-                      icon={<Settings className="h-4 w-4" />}
-                    >
-                      Edit Profile
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={toggleAvailability}
-                      icon={profile.available ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-                    >
-                      {profile.available ? 'Go Offline' : 'Go Online'}
-                    </Button>
-                  </div>
+                    <div className="flex space-x-4">
+                      <Button type="submit" icon={<Settings className="h-4 w-4" />}>
+                        Save Changes
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={toggleAvailability}
+                        icon={profile.available ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                      >
+                        {profile.available ? 'Go Offline' : 'Go Online'}
+                      </Button>
+                    </div>
+                  </form>
                 </div>
               )}
             </div>

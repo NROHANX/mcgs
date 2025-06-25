@@ -24,7 +24,8 @@ import {
   Phone,
   Mail,
   MapPin,
-  Heart
+  Heart,
+  Home
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
@@ -41,6 +42,7 @@ interface UserProfile {
   email: string;
   phone: string;
   location: string;
+  completeAddress: string;
   bio: string;
   preferences: {
     notifications: boolean;
@@ -94,6 +96,7 @@ const Profile: React.FC = () => {
     email: '',
     phone: '',
     location: '',
+    completeAddress: '',
     bio: '',
     preferences: {
       notifications: true,
@@ -145,6 +148,7 @@ const Profile: React.FC = () => {
           email: user?.email || '',
           phone: providerData.contact || '',
           location: providerData.location || '',
+          completeAddress: providerData.complete_address || '',
           bio: providerData.description || '',
           preferences: {
             notifications: true,
@@ -158,6 +162,7 @@ const Profile: React.FC = () => {
           email: user?.email || '',
           phone: '',
           location: '',
+          completeAddress: '',
           bio: '',
           preferences: {
             notifications: true,
@@ -257,6 +262,7 @@ const Profile: React.FC = () => {
             name: profile.name,
             contact: profile.phone,
             location: profile.location,
+            complete_address: profile.completeAddress,
             description: profile.bio
           })
           .eq('user_id', user?.id);
@@ -539,6 +545,25 @@ const Profile: React.FC = () => {
                           />
                           <p className="text-xs text-gray-500 mt-1">
                             🗺️ Use Google Maps to select your precise location
+                          </p>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Complete Address
+                          </label>
+                          <div className="relative">
+                            <Home className="absolute left-3 top-3 text-gray-400 h-5 w-5" />
+                            <textarea
+                              value={profile.completeAddress}
+                              onChange={(e) => setProfile({ ...profile, completeAddress: e.target.value })}
+                              rows={3}
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Enter your complete address including house number, street, area, city, state, pincode"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Provide your full address for accurate service delivery
                           </p>
                         </div>
 
