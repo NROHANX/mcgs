@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { MapPin, Loader, Navigation, Star, Clock, X } from 'lucide-react';
 
@@ -94,6 +95,85 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
     setInputValue(value);
   }, [value]);
 
+  // Portal Modal Component
+  const LocationModal = () => {
+    if (!showSuggestions) return null;
+
+    return createPortal(
+      <div 
+        className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4"
+        style={{ zIndex: 9999999 }}
+        onClick={handleCloseModal}
+      >
+        {/* Modal content */}
+        <div 
+          className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto relative"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full p-2 mr-3">
+                  <Navigation className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Select Your Location</h3>
+                  <p className="text-xs text-gray-500">Choose from popular locations or search</p>
+                </div>
+              </div>
+              <button 
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-gray-500 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            {/* Location List */}
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {popularLocations.map((location, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleLocationSelect(location.name)}
+                  className="w-full flex items-center justify-between p-3 hover:bg-blue-50 rounded-lg transition-colors text-left group"
+                >
+                  <div className="flex items-center">
+                    <div className="bg-blue-100 rounded-full p-2 mr-3 group-hover:bg-blue-200 transition-colors">
+                      <MapPin className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900 group-hover:text-blue-600">
+                        {location.name}
+                      </div>
+                      <div className="text-sm text-gray-500">{location.type}</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <div className="text-xs text-gray-400">{location.distance}</div>
+                    <div className="flex items-center text-xs text-green-600 mt-1">
+                      <Clock className="h-3 w-3 mr-1" />
+                      <span>30 min response</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            
+            {/* Footer */}
+            <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+              <div className="text-xs text-gray-500">
+                Powered by Google Maps • Precise location matching
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
   if (loadError) {
     console.error('Google Maps API failed to load:', loadError);
     // Fallback to regular input if Google Maps fails to load
@@ -166,81 +246,8 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
         </div>
       </div>
       
-      {/* MAXIMUM Z-INDEX LOCATION MODAL - APPEARS IN FRONT OF EVERYTHING */}
-      {showSuggestions && (
-        <div 
-          className="fixed inset-0 z-[999999] flex items-center justify-center" 
-          onClick={handleCloseModal}
-        >
-          {/* Full backdrop with strong blur */}
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-md"></div>
-          
-          {/* Modal content with maximum z-index */}
-          <div 
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto m-4 relative z-[999999]"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="p-6">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full p-2 mr-3">
-                    <Navigation className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Select Your Location</h3>
-                    <p className="text-xs text-gray-500">Choose from popular locations or search</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-500 transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              
-              {/* Location List */}
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {popularLocations.map((location, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => handleLocationSelect(location.name)}
-                    className="w-full flex items-center justify-between p-3 hover:bg-blue-50 rounded-lg transition-colors text-left group"
-                  >
-                    <div className="flex items-center">
-                      <div className="bg-blue-100 rounded-full p-2 mr-3 group-hover:bg-blue-200 transition-colors">
-                        <MapPin className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900 group-hover:text-blue-600">
-                          {location.name}
-                        </div>
-                        <div className="text-sm text-gray-500">{location.type}</div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <div className="text-xs text-gray-400">{location.distance}</div>
-                      <div className="flex items-center text-xs text-green-600 mt-1">
-                        <Clock className="h-3 w-3 mr-1" />
-                        <span>30 min response</span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              
-              {/* Footer */}
-              <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-                <div className="text-xs text-gray-500">
-                  Powered by Google Maps • Precise location matching
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Portal Modal - Renders outside component hierarchy */}
+      <LocationModal />
     </div>
   );
 };
