@@ -193,55 +193,20 @@ const ProviderDashboard: React.FC = () => {
         setBookings(processedBookings);
       }
 
-      // Fetch earnings - use a simpler approach to avoid RLS policy issues
-      try {
-        const { data: earningsData, error: earningsError } = await supabase
-          .from('earnings')
-          .select('*')
-          .eq('provider_id', providerData.id)
-          .order('created_at', { ascending: false });
-
-        if (earningsError) {
-          console.error('Error fetching earnings:', earningsError);
-          // If earnings fetch fails due to RLS issues, calculate from bookings
-          const completedBookings = bookings.filter(b => b.status === 'completed');
-          const estimatedEarnings = completedBookings.map((booking, index) => ({
-            id: `estimated-${index}`,
-            gross_amount: booking.amount,
-            platform_fee: booking.amount * 0.1, // Assume 10% platform fee
-            net_amount: booking.amount * 0.9,
-            status: 'paid' as const,
-            created_at: booking.created_at,
-            booking_id: booking.id
-          }));
-          setEarnings(estimatedEarnings);
-        } else {
-          const processedEarnings = earningsData?.map(earning => ({
-            id: earning.id,
-            gross_amount: parseFloat(earning.gross_amount),
-            platform_fee: parseFloat(earning.platform_fee),
-            net_amount: parseFloat(earning.net_amount),
-            status: earning.status,
-            created_at: earning.created_at,
-            booking_id: earning.booking_id
-          })) || [];
-          setEarnings(processedEarnings);
-        }
-      } catch (error) {
-        console.error('Earnings fetch failed, using estimated values:', error);
-        // Fallback: estimate earnings from completed bookings
-        const completedBookings = bookings.filter(b => b.status === 'completed');
-        const estimatedEarnings = completedBookings.map((booking, index) => ({
-          id: `estimated-${index}`,
-          gross_amount: booking.amount,
-          platform_fee: booking.amount * 0.1,
-          net_amount: booking.amount * 0.9,
-          status: 'paid' as const,
-          created_at: booking.created_at,
-          booking_id: booking.id
-        }));
-        setEarnings(estimatedEarnings);
-      }
+      // Calculate earnings from completed bookings instead of using the earnings table
+      // This avoids the RLS policy infinite recursion issue
+      const completedBookings = processedBookings.filter(b => b.status === 'completed');
+      const estimatedEarnings: EarningData[] = completedBookings.map((booking, index) => ({
+        id: `calculated-${booking.id}`,
+        gross_amount: booking.amount,
+        platform_fee: booking.amount * 0.1, // Assume 10% platform fee
+        net_amount: booking.amount * 0.9,
+        status: 'paid' as const,
+        created_at: booking.created_at,
+        booking_id: booking.id
+      }));
+      
+      setEarnings(estimatedEarnings);
 
       // Fetch support tickets
       const { data: ticketsData, error: ticketsError } = await supabase
@@ -259,7 +224,7 @@ const ProviderDashboard: React.FC = () => {
 
       // Calculate stats after all data is fetched
       setTimeout(() => {
-        calculateStats(bookings, earnings, providerData);
+        calculateStats(processedBookings, estimatedEarnings, providerData);
       }, 100);
 
     } catch (error) {
@@ -821,6 +786,17 @@ const ProviderDashboard: React.FC = () => {
               {activeTab === 'earnings' && (
                 <div>
                   <h2 className="text-xl font-semibold mb-6">Earnings Overview</h2>
+                  
+                  {/* Notice about calculated earnings */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-center">
+                      <DollarSign className="h-5 w-5 text-blue-600 mr-2" />
+                      <p className="text-blue-800 text-sm">
+                        <strong>Note:</strong> Earnings are calculated based on completed bookings with an estimated 10% platform fee. 
+                        Actual earnings may vary based on your specific agreement.
+                      </p>
+                    </div>
+                  </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                     <div className="bg-white border border-gray-200 rounded-lg p-4">
