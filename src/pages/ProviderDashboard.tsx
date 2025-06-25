@@ -21,7 +21,9 @@ import {
   DollarSign,
   Award,
   AlertTriangle,
-  Home
+  Home,
+  Briefcase,
+  User
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
@@ -956,31 +958,38 @@ const ProviderDashboard: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Business Name
+                          Business Name *
                         </label>
-                        <input
-                          type="text"
-                          value={profile.name}
-                          onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
+                        <div className="relative">
+                          <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                          <input
+                            type="text"
+                            value={profile.name}
+                            onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Enter your business name"
+                          />
+                        </div>
                       </div>
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Category
                         </label>
-                        <input
-                          type="text"
-                          value={profile.category}
-                          disabled
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                        />
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                          <input
+                            type="text"
+                            value={profile.category}
+                            disabled
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                          />
+                        </div>
                       </div>
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Location
+                          Location *
                         </label>
                         <GoogleMapsAutocomplete
                           value={profile.location}
@@ -995,14 +1004,18 @@ const ProviderDashboard: React.FC = () => {
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Contact
+                          Contact *
                         </label>
-                        <input
-                          type="text"
-                          value={profile.contact}
-                          onChange={(e) => setProfile({ ...profile, contact: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                          <input
+                            type="text"
+                            value={profile.contact}
+                            onChange={(e) => setProfile({ ...profile, contact: e.target.value })}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="+91 98765 43210"
+                          />
+                        </div>
                       </div>
 
                       <div className="md:col-span-2">
@@ -1015,7 +1028,7 @@ const ProviderDashboard: React.FC = () => {
                             value={profile.complete_address || ''}
                             onChange={(e) => setProfile({ ...profile, complete_address: e.target.value })}
                             rows={3}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                             placeholder="Enter your complete business address including house/shop number, street, area, city, state, pincode"
                           />
                         </div>
@@ -1028,7 +1041,7 @@ const ProviderDashboard: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Status
                         </label>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        <span className={`px-3 py-2 rounded-full text-sm font-medium ${
                           profile.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                         }`}>
                           {profile.available ? 'Available' : 'Offline'}
@@ -1039,12 +1052,16 @@ const ProviderDashboard: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Description
                         </label>
-                        <textarea
-                          value={profile.description}
-                          onChange={(e) => setProfile({ ...profile, description: e.target.value })}
-                          rows={4}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
+                        <div className="relative">
+                          <Briefcase className="absolute left-3 top-3 text-gray-400 h-5 w-5" />
+                          <textarea
+                            value={profile.description}
+                            onChange={(e) => setProfile({ ...profile, description: e.target.value })}
+                            rows={4}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            placeholder="Describe your services and expertise..."
+                          />
+                        </div>
                       </div>
                     </div>
 

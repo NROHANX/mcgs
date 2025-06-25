@@ -25,7 +25,8 @@ import {
   Mail,
   MapPin,
   Heart,
-  Home
+  Home,
+  Briefcase
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
@@ -499,38 +500,49 @@ const Profile: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Name
+                            Name *
                           </label>
-                          <input
-                            type="text"
-                            value={profile.name}
-                            onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                            <input
+                              type="text"
+                              value={profile.name}
+                              onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Enter your full name"
+                            />
+                          </div>
                         </div>
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Email
                           </label>
-                          <input
-                            type="email"
-                            value={profile.email}
-                            disabled
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                          />
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                            <input
+                              type="email"
+                              value={profile.email}
+                              disabled
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                            />
+                          </div>
                         </div>
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Phone
                           </label>
-                          <input
-                            type="tel"
-                            value={profile.phone}
-                            onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                            <input
+                              type="tel"
+                              value={profile.phone}
+                              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="+91 98765 43210"
+                            />
+                          </div>
                         </div>
 
                         <div>
@@ -558,7 +570,7 @@ const Profile: React.FC = () => {
                               value={profile.completeAddress}
                               onChange={(e) => setProfile({ ...profile, completeAddress: e.target.value })}
                               rows={3}
-                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                               placeholder="Enter your complete address including house number, street, area, city, state, pincode"
                             />
                           </div>
@@ -571,16 +583,20 @@ const Profile: React.FC = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Bio
                           </label>
-                          <textarea
-                            value={profile.bio}
-                            onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                            rows={4}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
+                          <div className="relative">
+                            <Briefcase className="absolute left-3 top-3 text-gray-400 h-5 w-5" />
+                            <textarea
+                              value={profile.bio}
+                              onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                              rows={4}
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                              placeholder="Tell us about yourself..."
+                            />
+                          </div>
                         </div>
                       </div>
 
-                      <Button type="submit">
+                      <Button type="submit" icon={<Settings className="h-4 w-4" />}>
                         Save Changes
                       </Button>
                     </form>
