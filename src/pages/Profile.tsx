@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Settings, Bell, LogOut, Calendar, CreditCard, Package } from 'lucide-react';
+import { User, Settings, Bell, LogOut, Calendar, CreditCard, Package, MessageSquare, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
+import SupportTicket from '../components/ui/SupportTicket';
+import CreateTicketModal from '../components/ui/CreateTicketModal';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -25,10 +27,21 @@ interface ServiceTaken {
   amount: number;
 }
 
+interface SupportTicketData {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const Profile: React.FC = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'profile' | 'services' | 'subscription'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'services' | 'subscription' | 'support'>('profile');
   const [isProvider, setIsProvider] = useState(false);
   const [profile, setProfile] = useState<UserProfile>({
     name: '',
@@ -38,7 +51,9 @@ const Profile: React.FC = () => {
     bio: ''
   });
   const [servicesTaken, setServicesTaken] = useState<ServiceTaken[]>([]);
+  const [supportTickets, setSupportTickets] = useState<SupportTicketData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreateTicketModalOpen, setIsCreateTicketModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -100,6 +115,15 @@ const Profile: React.FC = () => {
 
       setServicesTaken(processedServices);
 
+      // Fetch support tickets
+      const { data: ticketsData } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      setSupportTickets(ticketsData || []);
+
     } catch (error) {
       console.error('Error fetching user data:', error);
       toast.error('Failed to load profile data');
@@ -134,6 +158,10 @@ const Profile: React.FC = () => {
   const handleLogout = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleTicketCreated = () => {
+    fetchUserData();
   };
 
   if (loading) {
@@ -209,6 +237,23 @@ const Profile: React.FC = () => {
                   >
                     <Package className="h-5 w-5 mr-3" />
                     Subscription
+                  </button>
+
+                  <button
+                    className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
+                      activeTab === 'support'
+                        ? 'bg-blue-100 text-blue-700 font-medium'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                    onClick={() => setActiveTab('support')}
+                  >
+                    <MessageSquare className="h-5 w-5 mr-3" />
+                    Support Tickets
+                    {supportTickets.filter(t => t.status === 'open').length > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                        {supportTickets.filter(t => t.status === 'open').length}
+                      </span>
+                    )}
                   </button>
                   
                   <button
@@ -399,11 +444,53 @@ const Profile: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {activeTab === 'support' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-2xl font-bold">Support Tickets</h2>
+                      <Button
+                        onClick={() => setIsCreateTicketModalOpen(true)}
+                        icon={<Plus className="h-4 w-4" />}
+                      >
+                        Create Ticket
+                      </Button>
+                    </div>
+                    
+                    {supportTickets.length === 0 ? (
+                      <div className="text-center py-12">
+                        <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 mb-4">No support tickets yet</p>
+                        <Button
+                          onClick={() => setIsCreateTicketModalOpen(true)}
+                          icon={<Plus className="h-4 w-4" />}
+                        >
+                          Create Your First Ticket
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {supportTickets.map(ticket => (
+                          <SupportTicket
+                            key={ticket.id}
+                            ticket={ticket}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      <CreateTicketModal
+        isOpen={isCreateTicketModalOpen}
+        onClose={() => setIsCreateTicketModalOpen(false)}
+        onTicketCreated={handleTicketCreated}
+      />
 
       <Footer />
     </div>
