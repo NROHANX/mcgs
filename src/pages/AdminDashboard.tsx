@@ -218,25 +218,70 @@ const AdminDashboard: React.FC = () => {
       const request = registrationRequests.find(r => r.id === requestId);
       if (!request) return;
 
-      // Create user via Supabase Auth Admin API would be needed here
-      // For now, we'll simulate the approval process
-      
-      // Update request status
-      const { error: updateError } = await supabase
-        .from('user_registration_requests')
-        .update({ 
-          status: 'approved',
-          approved_by: user?.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', requestId);
+      // Create user account
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: request.email,
+        password: 'temp123456', // Temporary password - user should reset
+        email_confirm: true
+      });
 
-      if (updateError) throw updateError;
+      if (authError) throw authError;
 
-      toast.success(`${request.user_type} registration approved successfully!`);
-      toast.success('User will receive an email with login instructions.');
-      
-      fetchAdminData();
+      if (authData.user) {
+        // Create approval status record
+        const { error: statusError } = await supabase
+          .from('user_approval_status')
+          .insert([
+            {
+              user_id: authData.user.id,
+              email: request.email,
+              user_type: request.user_type,
+              status: 'approved',
+              approved_by: user?.id,
+              approved_at: new Date().toISOString()
+            }
+          ]);
+
+        if (statusError) throw statusError;
+
+        // If provider, create provider profile
+        if (request.user_type === 'provider' && request.provider_details) {
+          const { error: providerError } = await supabase
+            .from('service_providers')
+            .insert([
+              {
+                user_id: authData.user.id,
+                name: request.provider_details.name || request.email.split('@')[0],
+                category: request.provider_details.category || 'General',
+                description: 'New service provider',
+                location: 'Not specified',
+                contact: 'Not specified',
+                available: true
+              }
+            ]);
+
+          if (providerError) {
+            console.error('Error creating provider profile:', providerError);
+          }
+        }
+
+        // Update request status
+        const { error: updateError } = await supabase
+          .from('user_registration_requests')
+          .update({ 
+            status: 'approved',
+            approved_by: user?.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', requestId);
+
+        if (updateError) throw updateError;
+
+        toast.success(`${request.user_type} registration approved successfully!`);
+        toast.success('User account created and can now login.');
+        
+        fetchAdminData();
+      }
     } catch (error) {
       console.error('Error approving request:', error);
       toast.error('Failed to approve request');

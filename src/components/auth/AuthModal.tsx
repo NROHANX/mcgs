@@ -83,7 +83,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
           if (authData.user) {
             // Create admin user record
             const { error: adminError } = await supabase
-              .from('admin_users')
+              .from('admin_management')
               .insert([
                 {
                   user_id: authData.user.id,
@@ -137,7 +137,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
 
           // Check if user is admin
           const { data: adminData, error: adminError } = await supabase
-            .from('admin_users')
+            .from('admin_management')
             .select('*')
             .eq('user_id', authData.user.id)
             .single();
