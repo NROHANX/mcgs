@@ -12,7 +12,7 @@ const TrustBanner: React.FC = () => {
   const features = [
     {
       icon: <CheckCircle className="h-8 w-8" />,
-      title: 'Verified Professionals',
+      title: 'Verified Technicians',
       description: 'All service providers go through thorough verification',
       color: 'from-green-400 to-emerald-400'
     },

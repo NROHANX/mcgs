@@ -8,6 +8,7 @@ import ServicesBanner from '../components/home/ServicesBanner';
 import TrustBanner from '../components/home/TrustBanner';
 import CTABanner from '../components/home/CTABanner';
 import ServiceBookingModal from '../components/ui/ServiceBookingModal';
+import { serviceCategories } from '../data/serviceCategories';
 
 const Home: React.FC = () => {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
@@ -15,9 +16,20 @@ const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
 
   const handleSearch = (query: string, location: string) => {
-    // Open booking modal with the searched service
-    setSelectedService(query);
-    setSelectedCategory(query);
+    // Find matching service category
+    const matchingCategory = serviceCategories.find(cat => 
+      cat.name.toLowerCase().includes(query.toLowerCase()) ||
+      cat.services.some(service => service.toLowerCase().includes(query.toLowerCase()))
+    );
+    
+    if (matchingCategory) {
+      setSelectedService(matchingCategory.name);
+      setSelectedCategory(matchingCategory.name);
+    } else {
+      setSelectedService(query);
+      setSelectedCategory(query);
+    }
+    
     setIsBookingModalOpen(true);
   };
 

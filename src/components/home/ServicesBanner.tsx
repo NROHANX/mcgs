@@ -11,56 +11,72 @@ const ServicesBanner: React.FC = () => {
       name: 'RO Services', 
       color: 'from-blue-500 to-cyan-500',
       bgPattern: 'bg-gradient-to-br from-blue-100 to-cyan-100',
-      hoverColor: 'group-hover:from-blue-600 group-hover:to-cyan-600'
+      hoverColor: 'group-hover:from-blue-600 group-hover:to-cyan-600',
+      availability: 'Available Now',
+      technicians: 28
     },
     { 
       icon: <Wind className="h-8 w-8" />, 
       name: 'AC Services', 
       color: 'from-cyan-500 to-blue-600',
       bgPattern: 'bg-gradient-to-br from-cyan-100 to-blue-100',
-      hoverColor: 'group-hover:from-cyan-600 group-hover:to-blue-700'
+      hoverColor: 'group-hover:from-cyan-600 group-hover:to-blue-700',
+      availability: 'Available Now',
+      technicians: 20
     },
     { 
       icon: <Zap className="h-8 w-8" />, 
       name: 'Electrical Services', 
       color: 'from-yellow-500 to-orange-500',
       bgPattern: 'bg-gradient-to-br from-yellow-100 to-orange-100',
-      hoverColor: 'group-hover:from-yellow-600 group-hover:to-orange-600'
+      hoverColor: 'group-hover:from-yellow-600 group-hover:to-orange-600',
+      availability: 'Available Now',
+      technicians: 24
     },
     { 
       icon: <Settings className="h-8 w-8" />, 
       name: 'Plumbing Services', 
       color: 'from-blue-600 to-blue-800',
       bgPattern: 'bg-gradient-to-br from-blue-100 to-indigo-100',
-      hoverColor: 'group-hover:from-blue-700 group-hover:to-blue-900'
+      hoverColor: 'group-hover:from-blue-700 group-hover:to-blue-900',
+      availability: 'Limited Availability',
+      technicians: 18
     },
     { 
       icon: <Wrench className="h-8 w-8" />, 
       name: 'Mechanical Services', 
       color: 'from-gray-600 to-gray-800',
       bgPattern: 'bg-gradient-to-br from-gray-100 to-slate-100',
-      hoverColor: 'group-hover:from-gray-700 group-hover:to-gray-900'
+      hoverColor: 'group-hover:from-gray-700 group-hover:to-gray-900',
+      availability: 'Available Now',
+      technicians: 32
     },
     { 
       icon: <Hammer className="h-8 w-8" />, 
       name: 'Carpenting Services', 
       color: 'from-amber-600 to-orange-700',
       bgPattern: 'bg-gradient-to-br from-amber-100 to-orange-100',
-      hoverColor: 'group-hover:from-amber-700 group-hover:to-orange-800'
+      hoverColor: 'group-hover:from-amber-700 group-hover:to-orange-800',
+      availability: 'Busy',
+      technicians: 15
     },
     { 
       icon: <Palette className="h-8 w-8" />, 
       name: 'Painting Services', 
       color: 'from-purple-500 to-pink-500',
       bgPattern: 'bg-gradient-to-br from-purple-100 to-pink-100',
-      hoverColor: 'group-hover:from-purple-600 group-hover:to-pink-600'
+      hoverColor: 'group-hover:from-purple-600 group-hover:to-pink-600',
+      availability: 'Limited Availability',
+      technicians: 12
     },
     { 
       icon: <Trash className="h-8 w-8" />, 
       name: 'Cleaning Services', 
       color: 'from-green-500 to-emerald-500',
       bgPattern: 'bg-gradient-to-br from-green-100 to-emerald-100',
-      hoverColor: 'group-hover:from-green-600 group-hover:to-emerald-600'
+      hoverColor: 'group-hover:from-green-600 group-hover:to-emerald-600',
+      availability: 'Available Now',
+      technicians: 28
     },
   ];
 
@@ -70,6 +86,19 @@ const ServicesBanner: React.FC = () => {
 
   const handleViewAllClick = () => {
     navigate('/services');
+  };
+
+  const getAvailabilityColor = (availability: string) => {
+    switch (availability) {
+      case 'Available Now':
+        return 'text-green-600';
+      case 'Limited Availability':
+        return 'text-orange-600';
+      case 'Busy':
+        return 'text-red-600';
+      default:
+        return 'text-gray-600';
+    }
   };
 
   return (
@@ -86,7 +115,7 @@ const ServicesBanner: React.FC = () => {
           </div>
           
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Browse by Category
+            Browse by Service Category
           </h2>
           
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -118,9 +147,19 @@ const ServicesBanner: React.FC = () => {
                   </div>
                 </div>
                 
-                <h3 className="text-sm font-semibold text-gray-800 text-center group-hover:text-blue-600 transition-colors duration-300 relative z-10">
+                <h3 className="text-sm font-semibold text-gray-800 text-center group-hover:text-blue-600 transition-colors duration-300 relative z-10 mb-2">
                   {service.name}
                 </h3>
+
+                {/* Availability Status */}
+                <div className="text-center">
+                  <div className={`text-xs font-medium ${getAvailabilityColor(service.availability)} mb-1`}>
+                    {service.availability}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {service.technicians} technicians
+                  </div>
+                </div>
                 
                 {/* Hover Text Effect */}
                 <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
