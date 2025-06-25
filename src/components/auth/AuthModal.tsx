@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Lock, Eye, EyeOff, UserPlus } from 'lucide-react';
+import { X, User, Mail, Lock, Eye, EyeOff, UserPlus, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Button from '../ui/Button';
 import toast from 'react-hot-toast';
@@ -187,6 +187,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter your full name"
                 />
+              </div>
+
+              {/* Important Notice for Registration */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <div className="flex items-center">
+                  <AlertTriangle className="h-4 w-4 text-orange-600 mr-2" />
+                  <p className="text-sm text-orange-800">
+                    <strong>Important:</strong> Your registration will be submitted for admin approval. You will NOT be able to login until an administrator approves your account.
+                  </p>
+                </div>
               </div>
             </>
           )}

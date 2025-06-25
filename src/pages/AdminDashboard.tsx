@@ -99,13 +99,10 @@ const AdminDashboard: React.FC = () => {
       if (providersError) throw providersError;
       setProviders(providersData || []);
 
-      // Fetch bookings with provider details
+      // Fetch bookings
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
-        .select(`
-          *,
-          assigned_provider:service_providers(*)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (bookingsError) throw bookingsError;
@@ -499,9 +496,6 @@ const AdminDashboard: React.FC = () => {
                             Contact & Location
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Assigned Technician
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Status & Date
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -540,31 +534,6 @@ const AdminDashboard: React.FC = () => {
                                   </span>
                                 </div>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {booking.assigned_provider ? (
-                                <div className="flex items-center">
-                                  <div className="bg-green-100 rounded-full p-2 mr-3">
-                                    <User className="h-4 w-4 text-green-600" />
-                                  </div>
-                                  <div>
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {booking.assigned_provider.business_name}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {booking.assigned_provider.category}
-                                    </div>
-                                    <div className="flex items-center text-xs text-gray-400">
-                                      <Star className="h-3 w-3 mr-1 text-yellow-400" />
-                                      {booking.assigned_provider.rating || 0}
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-sm text-gray-500 italic">
-                                  No technician assigned
-                                </div>
-                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div>

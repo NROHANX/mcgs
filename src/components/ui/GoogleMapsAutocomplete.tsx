@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { MapPin, Loader } from 'lucide-react';
 
@@ -51,7 +51,7 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
   };
 
   // Update input value when prop value changes
-  React.useEffect(() => {
+  useEffect(() => {
     setInputValue(value);
   }, [value]);
 
