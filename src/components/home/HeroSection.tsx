@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import SearchBar from '../ui/SearchBar';
-import { Star, Users, CheckCircle, Zap, Sparkles, TrendingUp } from 'lucide-react';
+import { Star, Users, CheckCircle, Zap, Sparkles, TrendingUp, MapPin, Clock, Award } from 'lucide-react';
 import ServiceBookingModal from '../ui/ServiceBookingModal';
 
 interface HeroSectionProps {
@@ -80,27 +80,8 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
             Book any service and we'll assign the best technician for your needs
           </p>
           
+          {/* Enhanced Search Bar with Google Maps and Demo Services */}
           <SearchBar onSearch={onSearch} className="max-w-4xl mx-auto mb-12" />
-          
-          {/* Popular Services */}
-          <div className="mt-12 flex flex-wrap justify-center gap-4 text-sm">
-            <span className="text-blue-200 font-medium">Popular Services:</span>
-            {[
-              { name: 'RO Technician', color: 'from-blue-400 to-cyan-400' },
-              { name: 'AC Technician', color: 'from-cyan-400 to-blue-500' },
-              { name: 'Electrician', color: 'from-yellow-400 to-orange-400' },
-              { name: 'Plumber', color: 'from-blue-500 to-indigo-500' },
-              { name: 'Mechanic', color: 'from-gray-400 to-slate-500' }
-            ].map((service, index) => (
-              <button 
-                key={index}
-                className={`bg-gradient-to-r ${service.color} text-white px-4 py-2 rounded-full hover:scale-105 transition-all duration-300 font-medium shadow-lg hover:shadow-xl`}
-                onClick={() => handleServiceClick(service.name)}
-              >
-                {service.name}
-              </button>
-            ))}
-          </div>
           
           {/* Enhanced Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mt-16 max-w-4xl mx-auto">
