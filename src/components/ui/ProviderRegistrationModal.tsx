@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Lock, Eye, EyeOff, MapPin, Phone, Briefcase, CheckCircle, ArrowRight } from 'lucide-react';
+import { X, User, Mail, Lock, Eye, EyeOff, Phone, Briefcase, CheckCircle, ArrowRight } from 'lucide-react';
 import Button from './Button';
+import GoogleMapsAutocomplete from './GoogleMapsAutocomplete';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -75,6 +76,16 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
   ];
 
   if (!isOpen) return null;
+
+  const handleLocationChange = (value: string, placeDetails?: google.maps.places.PlaceResult) => {
+    setFormData({ ...formData, location: value });
+    
+    // If we have place details, we could store additional information
+    if (placeDetails) {
+      console.log('Selected place:', placeDetails);
+      // You could store latitude/longitude or other details if needed
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -332,19 +343,15 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Service Location *
           </label>
-          <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              required
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              placeholder="Enter your exact service location"
-            />
-          </div>
+          <GoogleMapsAutocomplete
+            value={formData.location}
+            onChange={handleLocationChange}
+            placeholder="Search for your exact service location"
+            required
+            className="text-sm"
+          />
           <p className="text-xs text-gray-500 mt-1">
-            Provide your specific service area for better customer matching
+            🗺️ Use Google Maps to select your precise service location
           </p>
         </div>
       </div>

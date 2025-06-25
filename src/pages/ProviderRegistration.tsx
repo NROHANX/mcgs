@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, Star, Users, Zap, ArrowLeft, CheckCircle, User, Mail, Lock, Eye, EyeOff, MapPin, Phone, Briefcase } from 'lucide-react';
+import { Shield, Star, Users, Zap, ArrowLeft, CheckCircle, User, Mail, Lock, Eye, EyeOff, Phone, Briefcase } from 'lucide-react';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
+import GoogleMapsAutocomplete from '../components/ui/GoogleMapsAutocomplete';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -126,6 +127,18 @@ const ProviderRegistration: React.FC = () => {
 
     checkExistingProvider();
   }, [user]);
+
+  const handleLocationChange = (value: string, placeDetails?: google.maps.places.PlaceResult) => {
+    setFormData({ ...formData, location: value });
+    
+    // If we have place details, we could store additional information
+    if (placeDetails) {
+      console.log('Selected place:', placeDetails);
+      // You could store latitude/longitude or other details if needed
+      // const lat = placeDetails.geometry?.location?.lat();
+      // const lng = placeDetails.geometry?.location?.lng();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -397,19 +410,14 @@ const ProviderRegistration: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Service Location *
           </label>
-          <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <input
-              type="text"
-              required
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter your exact service location (e.g., Sitabuldi, Nagpur, Maharashtra)"
-            />
-          </div>
+          <GoogleMapsAutocomplete
+            value={formData.location}
+            onChange={handleLocationChange}
+            placeholder="Search for your exact service location (e.g., Sitabuldi, Nagpur, Maharashtra)"
+            required
+          />
           <p className="text-sm text-gray-500 mt-2">
-            Please provide your specific service area or neighborhood for better customer matching
+            🗺️ Use Google Maps to select your precise service location for better customer matching
           </p>
         </div>
       </div>

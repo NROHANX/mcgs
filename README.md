@@ -10,12 +10,14 @@ A comprehensive service provider platform connecting customers with trusted prof
 - **Provider Dashboard**: Comprehensive dashboard for service providers to manage bookings and profile
 - **Admin Panel**: Administrative interface for managing providers and bookings
 - **Contact System**: Integrated contact form with email notifications
+- **Google Maps Integration**: Precise location selection for service providers
 - **Responsive Design**: Mobile-first design that works on all devices
 
 ## Tech Stack
 
 - **Frontend**: React 18, TypeScript, Tailwind CSS
 - **Backend**: Supabase (PostgreSQL, Authentication, Edge Functions)
+- **Maps**: Google Maps Places API with React Google Maps
 - **Icons**: Lucide React
 - **Notifications**: React Hot Toast
 - **Routing**: React Router DOM
@@ -27,6 +29,7 @@ A comprehensive service provider platform connecting customers with trusted prof
 - Node.js 18+ 
 - npm or yarn
 - Supabase account
+- Google Maps API key
 
 ### Installation
 
@@ -46,12 +49,13 @@ npm install
 cp .env.example .env
 ```
 
-Fill in your Supabase credentials in the `.env` file. You'll need both client-side and server-side variables:
+Fill in your credentials in the `.env` file:
 
 **Client-side variables (for frontend):**
 ```
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ```
 
 **Server-side variables (for backend/edge functions):**
@@ -64,6 +68,16 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 - `VITE_SUPABASE_URL` and `SUPABASE_URL`: Your Supabase project URL (found in Project Settings > API)
 - `VITE_SUPABASE_ANON_KEY`: Your Supabase anon/public key (found in Project Settings > API)
 - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key (found in Project Settings > API) - **Keep this secret!**
+- `VITE_GOOGLE_MAPS_API_KEY`: Your Google Maps API key from Google Cloud Console
+
+### Google Maps API Setup
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the **Places API** for your project
+4. Create credentials (API Key)
+5. Restrict the API key to your domain for security
+6. Add the API key to your `.env` file as `VITE_GOOGLE_MAPS_API_KEY`
 
 4. Run the development server:
 ```bash
@@ -78,6 +92,9 @@ The project uses Supabase with the following main tables:
 - `reviews` - Customer reviews and ratings
 - `bookings` - Service bookings
 - `contacts` - Contact form submissions
+- `support_tickets` - Customer support tickets
+- `earnings` - Provider earnings tracking
+- `payments` - Payment records
 
 Run the migrations in the `supabase/migrations` folder to set up the database schema.
 
@@ -114,6 +131,7 @@ src/
 - Book services directly through the platform
 - Track booking status
 - Leave reviews and ratings
+- Google Maps integration for precise location selection
 
 ### For Service Providers
 - Create and manage professional profiles
@@ -121,12 +139,20 @@ src/
 - Track earnings and performance
 - Update availability status
 - View customer reviews
+- Google Maps location selection for service areas
 
 ### For Admins
 - Manage all service providers
 - Monitor bookings and transactions
 - View platform analytics
 - Handle customer support
+
+## Google Maps Integration
+
+The application includes Google Maps Places Autocomplete for:
+- Precise location selection during provider registration
+- Better customer-provider matching based on location
+- Improved search and filtering capabilities
 
 ## Contact Information
 
