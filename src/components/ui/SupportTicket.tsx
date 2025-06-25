@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, Clock, CheckCircle, AlertTriangle, User } from 'lucide-react';
+import { MessageSquare, Clock, CheckCircle, AlertTriangle, User, Calendar } from 'lucide-react';
 import Button from './Button';
 
 interface SupportTicketProps {
@@ -88,10 +88,10 @@ const SupportTicket: React.FC<SupportTicketProps> = ({ ticket, onUpdate, isAdmin
         <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium mb-2">
           {ticket.category}
         </span>
-        <p className={`text-gray-700 ${!isExpanded && 'line-clamp-2'}`}>
+        <p className={`text-gray-700 ${!isExpanded && ticket.description.length > 150 ? 'line-clamp-3' : ''}`}>
           {ticket.description}
         </p>
-        {ticket.description.length > 100 && (
+        {ticket.description.length > 150 && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="text-blue-600 hover:text-blue-800 text-sm mt-1"
@@ -101,17 +101,19 @@ const SupportTicket: React.FC<SupportTicketProps> = ({ ticket, onUpdate, isAdmin
         )}
       </div>
 
-      <div className="flex items-center justify-between text-sm text-gray-500">
-        <div>
+      <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+        <div className="flex items-center">
+          <Calendar className="h-4 w-4 mr-1" />
           Created: {new Date(ticket.created_at).toLocaleDateString()}
         </div>
-        <div>
+        <div className="flex items-center">
+          <Clock className="h-4 w-4 mr-1" />
           Updated: {new Date(ticket.updated_at).toLocaleDateString()}
         </div>
       </div>
 
       {isAdmin && onUpdate && (
-        <div className="mt-4 flex space-x-2">
+        <div className="flex space-x-2 pt-4 border-t border-gray-100">
           {ticket.status === 'open' && (
             <Button
               size="sm"

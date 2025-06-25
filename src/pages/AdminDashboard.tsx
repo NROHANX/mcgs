@@ -25,25 +25,18 @@ import {
   BarChart3,
   PieChart,
   DollarSign,
-  MessageSquare,
   Shield,
-  UserPlus,
-  CreditCard,
+  MessageSquare,
   Award,
-  Target,
-  Briefcase,
+  CreditCard,
   FileText,
-  Bell,
-  Zap,
-  TrendingDown,
-  Plus,
-  Minus
+  UserPlus,
+  UserMinus
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
-import SupportTicket from '../components/ui/SupportTicket';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -54,17 +47,12 @@ interface AdminStats {
   completedBookings: number;
   cancelledBookings: number;
   totalRevenue: number;
-  totalEarnings: number;
-  pendingPayments: number;
-  paidPayments: number;
-  platformEarnings: number;
   activeUsers: number;
   totalContacts: number;
-  openTickets: number;
-  closedTickets: number;
   avgRating: number;
-  monthlyGrowth: number;
-  customerRetention: number;
+  totalEarnings: number;
+  platformCommission: number;
+  pendingPayments: number;
 }
 
 interface BookingData {
@@ -88,8 +76,7 @@ interface ProviderData {
   average_rating: number;
   review_count: number;
   created_at: string;
-  total_earnings?: number;
-  total_bookings?: number;
+  user_id: string;
 }
 
 interface ContactData {
@@ -110,18 +97,9 @@ interface SupportTicketData {
   category: string;
   priority: string;
   status: string;
+  user_email: string;
   created_at: string;
   updated_at: string;
-  user_email: string;
-}
-
-interface UserRoleData {
-  id: string;
-  user_id: string;
-  role: string;
-  permissions: any;
-  created_at: string;
-  user_email: string;
 }
 
 interface EarningsData {
@@ -131,24 +109,22 @@ interface EarningsData {
   platform_fee: number;
   net_amount: number;
   status: string;
-  created_at: string;
   booking_id: string;
+  created_at: string;
 }
 
-interface PaymentData {
+interface UserRoleData {
   id: string;
-  provider_name: string;
-  amount: number;
-  payment_method: string;
-  status: string;
+  user_email: string;
+  role: string;
+  permissions: any;
   created_at: string;
-  processed_at: string;
 }
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'providers' | 'bookings' | 'contacts' | 'support' | 'roles' | 'earnings' | 'payments' | 'analytics' | 'reports'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'providers' | 'bookings' | 'contacts' | 'support' | 'earnings' | 'users' | 'analytics'>('overview');
   const [stats, setStats] = useState<AdminStats>({
     totalProviders: 0,
     totalBookings: 0,
@@ -156,30 +132,23 @@ const AdminDashboard: React.FC = () => {
     completedBookings: 0,
     cancelledBookings: 0,
     totalRevenue: 0,
-    totalEarnings: 0,
-    pendingPayments: 0,
-    paidPayments: 0,
-    platformEarnings: 0,
     activeUsers: 0,
     totalContacts: 0,
-    openTickets: 0,
-    closedTickets: 0,
     avgRating: 0,
-    monthlyGrowth: 0,
-    customerRetention: 0
+    totalEarnings: 0,
+    platformCommission: 0,
+    pendingPayments: 0
   });
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [providers, setProviders] = useState<ProviderData[]>([]);
   const [contacts, setContacts] = useState<ContactData[]>([]);
   const [supportTickets, setSupportTickets] = useState<SupportTicketData[]>([]);
-  const [userRoles, setUserRoles] = useState<UserRoleData[]>([]);
   const [earnings, setEarnings] = useState<EarningsData[]>([]);
-  const [payments, setPayments] = useState<PaymentData[]>([]);
+  const [userRoles, setUserRoles] = useState<UserRoleData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
 
   useEffect(() => {
     if (!user) {
@@ -189,7 +158,7 @@ const AdminDashboard: React.FC = () => {
 
     // Check if user is admin
     if (user.email !== 'ashish15.nehamaiyah@gmail.com') {
-      toast.error('Access denied. Super Admin privileges required.');
+      toast.error('Access denied. Admin privileges required.');
       navigate('/');
       return;
     }
@@ -201,24 +170,13 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
 
-      // Fetch providers with earnings data
+      // Fetch providers
       const { data: providersData, error: providersError } = await supabase
         .from('service_providers')
-        .select(`
-          *,
-          earnings(net_amount),
-          bookings(id)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (providersError) throw providersError;
-
-      // Process providers with additional stats
-      const processedProviders = providersData?.map(provider => ({
-        ...provider,
-        total_earnings: provider.earnings?.reduce((sum: number, e: any) => sum + parseFloat(e.net_amount || 0), 0) || 0,
-        total_bookings: provider.bookings?.length || 0
-      })) || [];
 
       // Fetch bookings with provider and customer info
       const { data: bookingsData, error: bookingsError } = await supabase
@@ -240,7 +198,7 @@ const AdminDashboard: React.FC = () => {
 
       if (contactsError) throw contactsError;
 
-      // Fetch support tickets
+      // Fetch support tickets with user info
       const { data: ticketsData, error: ticketsError } = await supabase
         .from('support_tickets')
         .select(`
@@ -250,6 +208,17 @@ const AdminDashboard: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (ticketsError) throw ticketsError;
+
+      // Fetch earnings with provider info
+      const { data: earningsData, error: earningsError } = await supabase
+        .from('earnings')
+        .select(`
+          *,
+          service_providers!inner(name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (earningsError) throw earningsError;
 
       // Fetch user roles
       const { data: rolesData, error: rolesError } = await supabase
@@ -261,28 +230,6 @@ const AdminDashboard: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (rolesError) throw rolesError;
-
-      // Fetch earnings
-      const { data: earningsData, error: earningsError } = await supabase
-        .from('earnings')
-        .select(`
-          *,
-          service_providers!inner(name)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (earningsError) throw earningsError;
-
-      // Fetch payments
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('payments')
-        .select(`
-          *,
-          service_providers!inner(name)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (paymentsError) throw paymentsError;
 
       // Process data
       const processedBookings = bookingsData?.map(booking => ({
@@ -303,18 +250,9 @@ const AdminDashboard: React.FC = () => {
         category: ticket.category,
         priority: ticket.priority,
         status: ticket.status,
+        user_email: ticket.users?.email || 'Unknown',
         created_at: ticket.created_at,
-        updated_at: ticket.updated_at,
-        user_email: ticket.users?.email || 'Unknown'
-      })) || [];
-
-      const processedRoles = rolesData?.map(role => ({
-        id: role.id,
-        user_id: role.user_id,
-        role: role.role,
-        permissions: role.permissions,
-        created_at: role.created_at,
-        user_email: role.users?.email || 'Unknown'
+        updated_at: ticket.updated_at
       })) || [];
 
       const processedEarnings = earningsData?.map(earning => ({
@@ -324,81 +262,57 @@ const AdminDashboard: React.FC = () => {
         platform_fee: parseFloat(earning.platform_fee),
         net_amount: parseFloat(earning.net_amount),
         status: earning.status,
-        created_at: earning.created_at,
-        booking_id: earning.booking_id
+        booking_id: earning.booking_id,
+        created_at: earning.created_at
       })) || [];
 
-      const processedPayments = paymentsData?.map(payment => ({
-        id: payment.id,
-        provider_name: payment.service_providers?.name || 'Unknown',
-        amount: parseFloat(payment.amount),
-        payment_method: payment.payment_method,
-        status: payment.status,
-        created_at: payment.created_at,
-        processed_at: payment.processed_at
+      const processedRoles = rolesData?.map(role => ({
+        id: role.id,
+        user_email: role.users?.email || 'Unknown',
+        role: role.role,
+        permissions: role.permissions,
+        created_at: role.created_at
       })) || [];
 
-      setProviders(processedProviders);
+      setProviders(providersData || []);
       setBookings(processedBookings);
       setContacts(contactsData || []);
       setSupportTickets(processedTickets);
-      setUserRoles(processedRoles);
       setEarnings(processedEarnings);
-      setPayments(processedPayments);
+      setUserRoles(processedRoles);
 
-      // Calculate comprehensive stats
+      // Calculate stats
       const totalRevenue = processedBookings
         .filter(b => b.status === 'completed')
         .reduce((sum, b) => sum + b.amount, 0);
 
       const totalEarnings = processedEarnings
-        .reduce((sum, e) => sum + e.net_amount, 0);
+        .reduce((sum, e) => sum + e.gross_amount, 0);
 
-      const platformEarnings = processedEarnings
+      const platformCommission = processedEarnings
         .reduce((sum, e) => sum + e.platform_fee, 0);
 
       const pendingPayments = processedEarnings
         .filter(e => e.status === 'pending')
         .reduce((sum, e) => sum + e.net_amount, 0);
 
-      const paidPayments = processedPayments
-        .filter(p => p.status === 'completed')
-        .reduce((sum, p) => sum + p.amount, 0);
-
-      const avgRating = processedProviders?.length > 0 
-        ? processedProviders.reduce((sum, p) => sum + (p.average_rating || 0), 0) / processedProviders.length 
-        : 0;
-
-      // Calculate monthly growth (simplified)
-      const currentMonth = new Date().getMonth();
-      const currentMonthBookings = processedBookings.filter(b => 
-        new Date(b.created_at).getMonth() === currentMonth
-      ).length;
-      const lastMonthBookings = processedBookings.filter(b => 
-        new Date(b.created_at).getMonth() === currentMonth - 1
-      ).length;
-      const monthlyGrowth = lastMonthBookings > 0 
-        ? ((currentMonthBookings - lastMonthBookings) / lastMonthBookings) * 100 
+      const avgRating = providersData?.length > 0 
+        ? providersData.reduce((sum, p) => sum + (p.average_rating || 0), 0) / providersData.length 
         : 0;
 
       setStats({
-        totalProviders: processedProviders?.length || 0,
+        totalProviders: providersData?.length || 0,
         totalBookings: processedBookings.length,
         pendingBookings: processedBookings.filter(b => b.status === 'pending').length,
         completedBookings: processedBookings.filter(b => b.status === 'completed').length,
         cancelledBookings: processedBookings.filter(b => b.status === 'cancelled').length,
         totalRevenue,
-        totalEarnings,
-        pendingPayments,
-        paidPayments,
-        platformEarnings,
-        activeUsers: processedProviders?.filter(p => p.available).length || 0,
+        activeUsers: providersData?.filter(p => p.available).length || 0,
         totalContacts: contactsData?.length || 0,
-        openTickets: processedTickets.filter(t => ['open', 'in_progress'].includes(t.status)).length,
-        closedTickets: processedTickets.filter(t => ['resolved', 'closed'].includes(t.status)).length,
         avgRating,
-        monthlyGrowth,
-        customerRetention: 85 // This would be calculated based on repeat customers
+        totalEarnings,
+        platformCommission,
+        pendingPayments
       });
 
     } catch (error) {
@@ -422,80 +336,6 @@ const AdminDashboard: React.FC = () => {
       fetchAdminData();
     } catch (error) {
       toast.error('Failed to update booking status');
-    }
-  };
-
-  const updateTicketStatus = async (ticketId: string, updates: any) => {
-    try {
-      const { error } = await supabase
-        .from('support_tickets')
-        .update(updates)
-        .eq('id', ticketId);
-
-      if (error) throw error;
-
-      toast.success('Ticket updated successfully');
-      fetchAdminData();
-    } catch (error) {
-      toast.error('Failed to update ticket');
-    }
-  };
-
-  const updateUserRole = async (userId: string, newRole: string) => {
-    try {
-      const { error } = await supabase
-        .from('user_roles')
-        .upsert({
-          user_id: userId,
-          role: newRole,
-          assigned_by: user?.id
-        });
-
-      if (error) throw error;
-
-      toast.success('User role updated');
-      fetchAdminData();
-    } catch (error) {
-      toast.error('Failed to update user role');
-    }
-  };
-
-  const processPayment = async (earningId: string, paymentMethod: string) => {
-    try {
-      const earning = earnings.find(e => e.id === earningId);
-      if (!earning) return;
-
-      // Create payment record
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert([
-          {
-            provider_id: earning.provider_name, // This should be provider_id, but we'll use name for demo
-            amount: earning.net_amount,
-            payment_method: paymentMethod,
-            status: 'completed',
-            processed_by: user?.id,
-            processed_at: new Date().toISOString()
-          }
-        ]);
-
-      if (paymentError) throw paymentError;
-
-      // Update earning status
-      const { error: earningError } = await supabase
-        .from('earnings')
-        .update({ 
-          status: 'paid',
-          payment_date: new Date().toISOString()
-        })
-        .eq('id', earningId);
-
-      if (earningError) throw earningError;
-
-      toast.success('Payment processed successfully');
-      fetchAdminData();
-    } catch (error) {
-      toast.error('Failed to process payment');
     }
   };
 
@@ -533,7 +373,84 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const exportData = (type: 'bookings' | 'providers' | 'contacts' | 'earnings' | 'payments') => {
+  const updateTicketStatus = async (ticketId: string, newStatus: string) => {
+    try {
+      const updateData: any = { status: newStatus };
+      if (newStatus === 'resolved' || newStatus === 'closed') {
+        updateData.resolved_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('support_tickets')
+        .update(updateData)
+        .eq('id', ticketId);
+
+      if (error) throw error;
+
+      toast.success('Ticket status updated');
+      fetchAdminData();
+    } catch (error) {
+      toast.error('Failed to update ticket status');
+    }
+  };
+
+  const assignUserRole = async (userId: string, role: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .upsert({
+          user_id: userId,
+          role: role,
+          assigned_by: user?.id
+        });
+
+      if (error) throw error;
+
+      toast.success('User role updated');
+      fetchAdminData();
+    } catch (error) {
+      toast.error('Failed to update user role');
+    }
+  };
+
+  const processPayment = async (earningId: string, paymentMethod: string) => {
+    try {
+      const earning = earnings.find(e => e.id === earningId);
+      if (!earning) return;
+
+      // Create payment record
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          provider_id: earning.id, // This should be provider_id from earnings
+          amount: earning.net_amount,
+          payment_method: paymentMethod,
+          status: 'completed',
+          processed_by: user?.id,
+          processed_at: new Date().toISOString()
+        });
+
+      if (paymentError) throw paymentError;
+
+      // Update earning status
+      const { error: earningError } = await supabase
+        .from('earnings')
+        .update({ 
+          status: 'paid',
+          payment_date: new Date().toISOString()
+        })
+        .eq('id', earningId);
+
+      if (earningError) throw earningError;
+
+      toast.success('Payment processed successfully');
+      fetchAdminData();
+    } catch (error) {
+      toast.error('Failed to process payment');
+    }
+  };
+
+  const exportData = (type: 'bookings' | 'providers' | 'contacts' | 'earnings') => {
     let data: any[] = [];
     let filename = '';
 
@@ -553,10 +470,6 @@ const AdminDashboard: React.FC = () => {
       case 'earnings':
         data = earnings;
         filename = 'earnings_export.csv';
-        break;
-      case 'payments':
-        data = payments;
-        filename = 'payments_export.csv';
         break;
     }
 
@@ -611,14 +524,13 @@ const AdminDashboard: React.FC = () => {
   );
 
   const categories = [...new Set(providers.map(p => p.category))];
-  const roles = ['customer', 'service_provider', 'support_staff', 'customer_care', 'booking_staff', 'employee', 'admin', 'super_admin'];
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Loading Super Admin dashboard...</p>
+          <p>Loading admin dashboard...</p>
         </div>
       </div>
     );
@@ -632,25 +544,18 @@ const AdminDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <div className="flex items-center mb-4">
-              <Shield className="h-8 w-8 text-red-600 mr-3" />
+              <AlertTriangle className="h-8 w-8 text-red-600 mr-3" />
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
-                <p className="text-gray-600">Complete platform management and business intelligence</p>
+                <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+                <p className="text-gray-600">Comprehensive platform management and analytics</p>
               </div>
-              <div className="ml-auto flex space-x-3">
+              <div className="ml-auto">
                 <Button
                   onClick={fetchAdminData}
                   variant="outline"
                   icon={<RefreshCw className="h-4 w-4" />}
                 >
                   Refresh Data
-                </Button>
-                <Button
-                  onClick={() => exportData('bookings')}
-                  variant="outline"
-                  icon={<Download className="h-4 w-4" />}
-                >
-                  Export Reports
                 </Button>
               </div>
             </div>
@@ -659,7 +564,7 @@ const AdminDashboard: React.FC = () => {
               <div className="flex items-center">
                 <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
                 <p className="text-red-800 font-medium">
-                  Super Admin Access - Logged in as: {user?.email} | Full Platform Control
+                  Admin Access - Logged in as: {user?.email}
                 </p>
               </div>
             </div>
@@ -674,7 +579,7 @@ const AdminDashboard: React.FC = () => {
               </div>
               <p className="text-2xl font-bold text-gray-900">{stats.totalProviders}</p>
               <p className="text-sm text-green-600 mt-1">
-                {stats.activeUsers} active ({Math.round((stats.activeUsers / stats.totalProviders) * 100)}%)
+                {stats.activeUsers} active
               </p>
             </div>
 
@@ -700,21 +605,21 @@ const AdminDashboard: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
+            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-gray-500">Platform Earnings</h3>
-                <TrendingUp className="h-5 w-5 text-orange-500" />
+                <h3 className="text-sm font-medium text-gray-500">Platform Commission</h3>
+                <TrendingUp className="h-5 w-5 text-yellow-500" />
               </div>
-              <p className="text-2xl font-bold text-gray-900">₹{stats.platformEarnings.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">₹{stats.platformCommission.toLocaleString()}</p>
               <p className="text-sm text-gray-500 mt-1">
-                Platform fees
+                From completed bookings
               </p>
             </div>
 
             <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-gray-500">Pending Payments</h3>
-                <Clock className="h-5 w-5 text-red-500" />
+                <CreditCard className="h-5 w-5 text-red-500" />
               </div>
               <p className="text-2xl font-bold text-gray-900">₹{stats.pendingPayments.toLocaleString()}</p>
               <p className="text-sm text-red-600 mt-1">
@@ -722,68 +627,15 @@ const AdminDashboard: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
+            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-gray-500">Support Tickets</h3>
-                <MessageSquare className="h-5 w-5 text-yellow-500" />
+                <MessageSquare className="h-5 w-5 text-indigo-500" />
               </div>
               <p className="text-2xl font-bold text-gray-900">{supportTickets.length}</p>
-              <p className="text-sm text-red-600 mt-1">
-                {stats.openTickets} open
+              <p className="text-sm text-gray-500 mt-1">
+                {supportTickets.filter(t => t.status === 'open').length} open
               </p>
-            </div>
-          </div>
-
-          {/* Business Intelligence Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100">Monthly Growth</p>
-                  <p className="text-2xl font-bold">
-                    {stats.monthlyGrowth > 0 ? '+' : ''}{stats.monthlyGrowth.toFixed(1)}%
-                  </p>
-                </div>
-                {stats.monthlyGrowth >= 0 ? (
-                  <TrendingUp className="h-8 w-8 text-blue-200" />
-                ) : (
-                  <TrendingDown className="h-8 w-8 text-blue-200" />
-                )}
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100">Completion Rate</p>
-                  <p className="text-2xl font-bold">
-                    {stats.totalBookings > 0 
-                      ? Math.round((stats.completedBookings / stats.totalBookings) * 100)
-                      : 0}%
-                  </p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-green-200" />
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100">Avg Rating</p>
-                  <p className="text-2xl font-bold">{stats.avgRating.toFixed(1)}★</p>
-                </div>
-                <Star className="h-8 w-8 text-purple-200" />
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100">Customer Retention</p>
-                  <p className="text-2xl font-bold">{stats.customerRetention}%</p>
-                </div>
-                <Award className="h-8 w-8 text-orange-200" />
-              </div>
             </div>
           </div>
 
@@ -793,15 +645,13 @@ const AdminDashboard: React.FC = () => {
               <nav className="flex overflow-x-auto">
                 {[
                   { id: 'overview', label: 'Overview', icon: Activity },
-                  { id: 'providers', label: 'Service Providers', icon: Users },
+                  { id: 'providers', label: 'Providers', icon: Users },
                   { id: 'bookings', label: 'Bookings', icon: Calendar },
                   { id: 'earnings', label: 'Earnings', icon: DollarSign },
-                  { id: 'payments', label: 'Payments', icon: CreditCard },
-                  { id: 'support', label: 'Support Tickets', icon: MessageSquare },
-                  { id: 'roles', label: 'User Roles', icon: Shield },
-                  { id: 'contacts', label: 'Contact Forms', icon: Mail },
-                  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-                  { id: 'reports', label: 'Reports', icon: FileText }
+                  { id: 'support', label: 'Support', icon: MessageSquare },
+                  { id: 'contacts', label: 'Contacts', icon: Mail },
+                  { id: 'users', label: 'User Roles', icon: Shield },
+                  { id: 'analytics', label: 'Analytics', icon: BarChart3 }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -814,16 +664,6 @@ const AdminDashboard: React.FC = () => {
                   >
                     <tab.icon className="h-4 w-4 mr-2" />
                     {tab.label}
-                    {tab.id === 'support' && stats.openTickets > 0 && (
-                      <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
-                        {stats.openTickets}
-                      </span>
-                    )}
-                    {tab.id === 'payments' && stats.pendingPayments > 0 && (
-                      <span className="ml-2 bg-orange-500 text-white text-xs rounded-full px-2 py-1">
-                        ₹{(stats.pendingPayments / 1000).toFixed(0)}K
-                      </span>
-                    )}
                   </button>
                 ))}
               </nav>
@@ -831,7 +671,7 @@ const AdminDashboard: React.FC = () => {
 
             <div className="p-6">
               {/* Search and Filter */}
-              {(activeTab === 'providers' || activeTab === 'bookings' || activeTab === 'contacts' || activeTab === 'support' || activeTab === 'earnings' || activeTab === 'payments') && (
+              {(activeTab === 'providers' || activeTab === 'bookings' || activeTab === 'contacts' || activeTab === 'support') && (
                 <div className="flex flex-col sm:flex-row gap-4 mb-6">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -889,7 +729,62 @@ const AdminDashboard: React.FC = () => {
               {/* Tab Content */}
               {activeTab === 'overview' && (
                 <div className="space-y-8">
-                  {/* Recent Activity Dashboard */}
+                  {/* Quick Stats Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-blue-100">Completion Rate</p>
+                          <p className="text-2xl font-bold">
+                            {stats.totalBookings > 0 
+                              ? Math.round((stats.completedBookings / stats.totalBookings) * 100)
+                              : 0}%
+                          </p>
+                        </div>
+                        <CheckCircle className="h-8 w-8 text-blue-200" />
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-green-100">Active Providers</p>
+                          <p className="text-2xl font-bold">
+                            {stats.totalProviders > 0 
+                              ? Math.round((stats.activeUsers / stats.totalProviders) * 100)
+                              : 0}%
+                          </p>
+                        </div>
+                        <UserCheck className="h-8 w-8 text-green-200" />
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-purple-100">Avg Revenue/Booking</p>
+                          <p className="text-2xl font-bold">
+                            ₹{stats.completedBookings > 0 
+                              ? Math.round(stats.totalRevenue / stats.completedBookings)
+                              : 0}
+                          </p>
+                        </div>
+                        <TrendingUp className="h-8 w-8 text-purple-200" />
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-orange-100">Pending Actions</p>
+                          <p className="text-2xl font-bold">{stats.pendingBookings}</p>
+                        </div>
+                        <Clock className="h-8 w-8 text-orange-200" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recent Activity */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="bg-gray-50 rounded-lg p-6">
                       <h3 className="text-lg font-semibold mb-4 flex items-center">
@@ -920,12 +815,12 @@ const AdminDashboard: React.FC = () => {
 
                     <div className="bg-gray-50 rounded-lg p-6">
                       <h3 className="text-lg font-semibold mb-4 flex items-center">
-                        <TrendingUp className="h-5 w-5 mr-2" />
+                        <Star className="h-5 w-5 mr-2" />
                         Top Performing Providers
                       </h3>
                       <div className="space-y-3">
                         {providers
-                          .sort((a, b) => (b.total_earnings || 0) - (a.total_earnings || 0))
+                          .sort((a, b) => b.average_rating - a.average_rating)
                           .slice(0, 5)
                           .map(provider => (
                             <div key={provider.id} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-b-0">
@@ -934,129 +829,256 @@ const AdminDashboard: React.FC = () => {
                                 <p className="text-xs text-gray-500">{provider.category}</p>
                               </div>
                               <div className="text-right">
-                                <p className="font-medium text-sm">₹{(provider.total_earnings || 0).toLocaleString()}</p>
-                                <p className="text-xs text-gray-500">{provider.total_bookings} bookings</p>
+                                <p className="font-medium text-sm">★ {provider.average_rating.toFixed(1)}</p>
+                                <p className="text-xs text-gray-500">{provider.review_count} reviews</p>
                               </div>
                             </div>
                           ))}
                       </div>
                     </div>
                   </div>
-
-                  {/* Financial Overview */}
-                  <div className="bg-gray-50 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center">
-                      <DollarSign className="h-5 w-5 mr-2" />
-                      Financial Overview
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">₹{stats.totalRevenue.toLocaleString()}</div>
-                        <div className="text-sm text-gray-600">Total Revenue</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">₹{stats.platformEarnings.toLocaleString()}</div>
-                        <div className="text-sm text-gray-600">Platform Earnings</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-orange-600">₹{stats.pendingPayments.toLocaleString()}</div>
-                        <div className="text-sm text-gray-600">Pending Payments</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-600">₹{stats.paidPayments.toLocaleString()}</div>
-                        <div className="text-sm text-gray-600">Paid to Providers</div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
 
-              {/* Payments Tab */}
-              {activeTab === 'payments' && (
+              {activeTab === 'providers' && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Provider
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Category
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Location
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Contact
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Rating
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredProviders.map(provider => (
+                        <tr key={provider.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{provider.name}</div>
+                              <div className="text-sm text-gray-500">
+                                Joined {new Date(provider.created_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {provider.category}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {provider.location}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {provider.contact}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <div className="flex items-center">
+                              <Star className="h-4 w-4 text-yellow-400 mr-1" />
+                              {provider.average_rating.toFixed(1)} ({provider.review_count})
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              provider.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {provider.available ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                variant={provider.available ? 'outline' : 'primary'}
+                                onClick={() => toggleProviderStatus(provider.id, provider.available)}
+                              >
+                                {provider.available ? 'Deactivate' : 'Activate'}
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {activeTab === 'bookings' && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Service
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Provider
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Customer
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Amount
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredBookings.map(booking => (
+                        <tr key={booking.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{booking.service_name}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {booking.provider_name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {booking.customer_email}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(booking.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ₹{booking.amount}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              booking.status === 'pending' ? 'bg-orange-100 text-orange-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {booking.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            {booking.status === 'pending' && (
+                              <div className="flex space-x-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateBookingStatus(booking.id, 'completed')}
+                                >
+                                  Complete
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {activeTab === 'earnings' && (
                 <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold">Payment Management</h2>
-                    <div className="flex space-x-3">
-                      <Button
-                        onClick={() => {
-                          // Process all pending payments
-                          earnings.filter(e => e.status === 'pending').forEach(earning => {
-                            processPayment(earning.id, 'bank_transfer');
-                          });
-                        }}
-                        icon={<CreditCard className="h-4 w-4" />}
-                      >
-                        Process All Pending
-                      </Button>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-gray-900">₹{stats.totalEarnings.toLocaleString()}</div>
+                      <div className="text-sm text-gray-600">Total Earnings</div>
                     </div>
-                  </div>
-                  
-                  {/* Payment Summary */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-orange-50 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold text-orange-800 mb-2">Pending Payments</h3>
-                      <p className="text-3xl font-bold text-orange-600">₹{stats.pendingPayments.toLocaleString()}</p>
-                      <p className="text-sm text-orange-700">{earnings.filter(e => e.status === 'pending').length} providers</p>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-green-600">₹{stats.platformCommission.toLocaleString()}</div>
+                      <div className="text-sm text-gray-600">Platform Commission</div>
                     </div>
-                    <div className="bg-green-50 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold text-green-800 mb-2">Paid This Month</h3>
-                      <p className="text-3xl font-bold text-green-600">₹{stats.paidPayments.toLocaleString()}</p>
-                      <p className="text-sm text-green-700">{payments.filter(p => p.status === 'completed').length} transactions</p>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-orange-600">₹{stats.pendingPayments.toLocaleString()}</div>
+                      <div className="text-sm text-gray-600">Pending Payments</div>
                     </div>
-                    <div className="bg-blue-50 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold text-blue-800 mb-2">Total Earnings</h3>
-                      <p className="text-3xl font-bold text-blue-600">₹{stats.totalEarnings.toLocaleString()}</p>
-                      <p className="text-sm text-blue-700">Provider earnings</p>
-                    </div>
-                    <div className="bg-purple-50 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold text-purple-800 mb-2">Platform Revenue</h3>
-                      <p className="text-3xl font-bold text-purple-600">₹{stats.platformEarnings.toLocaleString()}</p>
-                      <p className="text-sm text-purple-700">Commission earned</p>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {earnings.filter(e => e.status === 'paid').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Paid Earnings</div>
                     </div>
                   </div>
 
-                  {/* Pending Payments Table */}
-                  <div className="bg-white rounded-lg border border-gray-200 mb-8">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold">Pending Payments to Providers</h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Provider
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Amount Due
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Booking Date
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Days Pending
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {earnings.filter(e => e.status === 'pending').map(earning => (
-                            <tr key={earning.id}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {earning.provider_name}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                                ₹{earning.net_amount.toLocaleString()}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {new Date(earning.created_at).toLocaleDateString()}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {Math.floor((Date.now() - new Date(earning.created_at).getTime()) / (1000 * 60 * 60 * 24))} days
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Provider
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Gross Amount
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Platform Fee
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Net Amount
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {earnings.map(earning => (
+                          <tr key={earning.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {earning.provider_name}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              ₹{earning.gross_amount.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              ₹{earning.platform_fee.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              ₹{earning.net_amount.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                earning.status === 'paid' ? 'bg-green-100 text-green-800' :
+                                earning.status === 'pending' ? 'bg-orange-100 text-orange-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {earning.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {new Date(earning.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              {earning.status === 'pending' && (
                                 <div className="flex space-x-2">
                                   <Button
                                     size="sm"
@@ -1064,177 +1086,368 @@ const AdminDashboard: React.FC = () => {
                                   >
                                     Pay Now
                                   </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => processPayment(earning.id, 'upi')}
-                                  >
-                                    UPI
-                                  </Button>
                                 </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Payment History */}
-                  <div className="bg-white rounded-lg border border-gray-200">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold">Recent Payment History</h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Provider
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Amount
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Method
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Date
-                            </th>
+                              )}
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {payments.slice(0, 10).map(payment => (
-                            <tr key={payment.id}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {payment.provider_name}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                ₹{payment.amount.toLocaleString()}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {payment.payment_method.replace('_', ' ')}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  payment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                  payment.status === 'pending' ? 'bg-orange-100 text-orange-800' :
-                                  'bg-red-100 text-red-800'
-                                }`}>
-                                  {payment.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {new Date(payment.processed_at || payment.created_at).toLocaleDateString()}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
 
-              {/* Reports Tab */}
-              {activeTab === 'reports' && (
+              {activeTab === 'support' && (
                 <div>
-                  <h2 className="text-xl font-semibold mb-6">Business Reports & Analytics</h2>
-                  
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Revenue Report */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold mb-4">Revenue Breakdown</h3>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span>Total Platform Revenue</span>
-                          <span className="font-bold text-green-600">₹{stats.totalRevenue.toLocaleString()}</span>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-gray-900">{supportTickets.length}</div>
+                      <div className="text-sm text-gray-600">Total Tickets</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {supportTickets.filter(t => t.status === 'open').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Open Tickets</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {supportTickets.filter(t => t.status === 'in_progress').length}
+                      </div>
+                      <div className="text-sm text-gray-600">In Progress</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-green-600">
+                        {supportTickets.filter(t => t.status === 'resolved' || t.status === 'closed').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Resolved</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {filteredTickets.map(ticket => (
+                      <div key={ticket.id} className="bg-white border border-gray-200 rounded-lg p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{ticket.title}</h3>
+                            <p className="text-sm text-gray-600">
+                              From: {ticket.user_email} | Category: {ticket.category} | Priority: {ticket.priority}
+                            </p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              ticket.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                              ticket.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                              ticket.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {ticket.priority}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              ticket.status === 'open' ? 'bg-orange-100 text-orange-800' :
+                              ticket.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                              ticket.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {ticket.status.replace('_', ' ')}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span>Platform Commission (10%)</span>
-                          <span className="font-bold text-blue-600">₹{stats.platformEarnings.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Provider Earnings (90%)</span>
-                          <span className="font-bold text-purple-600">₹{stats.totalEarnings.toLocaleString()}</span>
-                        </div>
-                        <div className="border-t pt-4">
-                          <div className="flex justify-between items-center">
-                            <span>Average Revenue per Booking</span>
-                            <span className="font-bold">₹{stats.completedBookings > 0 ? Math.round(stats.totalRevenue / stats.completedBookings) : 0}</span>
+                        
+                        <p className="text-gray-700 mb-4">{ticket.description}</p>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-500">
+                            Created: {new Date(ticket.created_at).toLocaleDateString()}
+                          </div>
+                          <div className="flex space-x-2">
+                            {ticket.status === 'open' && (
+                              <Button
+                                size="sm"
+                                onClick={() => updateTicketStatus(ticket.id, 'in_progress')}
+                              >
+                                Start Working
+                              </Button>
+                            )}
+                            {ticket.status === 'in_progress' && (
+                              <Button
+                                size="sm"
+                                onClick={() => updateTicketStatus(ticket.id, 'resolved')}
+                              >
+                                Mark Resolved
+                              </Button>
+                            )}
+                            {ticket.status === 'resolved' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateTicketStatus(ticket.id, 'closed')}
+                              >
+                                Close Ticket
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'contacts' && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 gap-6">
+                    {filteredContacts.map(contact => (
+                      <div key={contact.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <h3 className="text-lg font-semibold text-gray-900 mr-3">{contact.name}</h3>
+                              {contact.service_type && (
+                                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                                  {contact.service_type}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                              <div className="flex items-center">
+                                <Mail className="h-4 w-4 mr-1" />
+                                {contact.email}
+                              </div>
+                              {contact.phone && (
+                                <div className="flex items-center">
+                                  <Phone className="h-4 w-4 mr-1" />
+                                  {contact.phone}
+                                </div>
+                              )}
+                              <div className="text-gray-500">
+                                {new Date(contact.created_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <h4 className="font-medium text-gray-900 mb-2">{contact.subject}</h4>
+                            <p className="text-gray-700 leading-relaxed">{contact.message}</p>
+                          </div>
+                          <div className="flex space-x-2 ml-4">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(`mailto:${contact.email}?subject=Re: ${contact.subject}`)}
+                              icon={<Mail className="h-4 w-4" />}
+                            >
+                              Reply
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => deleteContact(contact.id)}
+                              icon={<Trash2 className="h-4 w-4" />}
+                              className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {filteredContacts.length === 0 && (
+                    <div className="text-center py-12">
+                      <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No contact forms found</h3>
+                      <p className="text-gray-600">No contact submissions match your search criteria.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'users' && (
+                <div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-4">User Role Management</h3>
+                    <p className="text-gray-600">Manage user roles and permissions across the platform.</p>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            User Email
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Current Role
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Assigned Date
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {userRoles.map(userRole => (
+                          <tr key={userRole.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {userRole.user_email}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                userRole.role === 'super_admin' ? 'bg-red-100 text-red-800' :
+                                userRole.role === 'admin' ? 'bg-orange-100 text-orange-800' :
+                                userRole.role === 'service_provider' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {userRole.role.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {new Date(userRole.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <select
+                                value={userRole.role}
+                                onChange={(e) => assignUserRole(userRole.id, e.target.value)}
+                                className="text-sm border border-gray-300 rounded px-2 py-1"
+                              >
+                                <option value="customer">Customer</option>
+                                <option value="service_provider">Service Provider</option>
+                                <option value="support_staff">Support Staff</option>
+                                <option value="customer_care">Customer Care</option>
+                                <option value="booking_staff">Booking Staff</option>
+                                <option value="employee">Employee</option>
+                                <option value="admin">Admin</option>
+                                <option value="super_admin">Super Admin</option>
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'analytics' && (
+                <div className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Service Category Distribution */}
+                    <div className="bg-white p-6 rounded-lg border">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center">
+                        <PieChart className="h-5 w-5 mr-2" />
+                        Provider Categories
+                      </h3>
+                      <div className="space-y-3">
+                        {categories.map(category => {
+                          const count = providers.filter(p => p.category === category).length;
+                          const percentage = providers.length > 0 ? (count / providers.length) * 100 : 0;
+                          return (
+                            <div key={category} className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">{category}</span>
+                              <div className="flex items-center">
+                                <div className="w-20 bg-gray-200 rounded-full h-2 mr-2">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full" 
+                                    style={{ width: `${percentage}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-sm font-medium">{count}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
 
-                    {/* Performance Metrics */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold mb-4">Performance Metrics</h3>
+                    {/* Booking Status Distribution */}
+                    <div className="bg-white p-6 rounded-lg border">
+                      <h3 className="text-lg font-semibold mb-4">Booking Status</h3>
+                      <div className="space-y-3">
+                        {[
+                          { status: 'completed', count: stats.completedBookings, color: 'bg-green-600' },
+                          { status: 'pending', count: stats.pendingBookings, color: 'bg-orange-600' },
+                          { status: 'cancelled', count: stats.cancelledBookings, color: 'bg-red-600' }
+                        ].map(item => {
+                          const percentage = stats.totalBookings > 0 ? (item.count / stats.totalBookings) * 100 : 0;
+                          return (
+                            <div key={item.status} className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600 capitalize">{item.status}</span>
+                              <div className="flex items-center">
+                                <div className="w-20 bg-gray-200 rounded-full h-2 mr-2">
+                                  <div 
+                                    className={`${item.color} h-2 rounded-full`} 
+                                    style={{ width: `${percentage}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-sm font-medium">{item.count}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Revenue Insights */}
+                    <div className="bg-white p-6 rounded-lg border">
+                      <h3 className="text-lg font-semibold mb-4">Revenue Insights</h3>
                       <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span>Booking Success Rate</span>
-                          <span className="font-bold text-green-600">
-                            {stats.totalBookings > 0 ? Math.round((stats.completedBookings / stats.totalBookings) * 100) : 0}%
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Total Revenue</span>
+                          <span className="font-medium">₹{stats.totalRevenue.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Platform Commission</span>
+                          <span className="font-medium">₹{stats.platformCommission.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Avg per Booking</span>
+                          <span className="font-medium">
+                            ₹{stats.completedBookings > 0 
+                              ? Math.round(stats.totalRevenue / stats.completedBookings).toLocaleString()
+                              : 0}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span>Provider Utilization</span>
-                          <span className="font-bold text-blue-600">
-                            {Math.round((stats.activeUsers / stats.totalProviders) * 100)}%
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Customer Satisfaction</span>
-                          <span className="font-bold text-yellow-600">{stats.avgRating.toFixed(1)}★</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Support Resolution Rate</span>
-                          <span className="font-bold text-purple-600">
-                            {supportTickets.length > 0 ? Math.round((stats.closedTickets / supportTickets.length) * 100) : 0}%
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Completion Rate</span>
+                          <span className="font-medium">
+                            {stats.totalBookings > 0 
+                              ? Math.round((stats.completedBookings / stats.totalBookings) * 100)
+                              : 0}%
                           </span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Export Options */}
-                  <div className="mt-8 bg-gray-50 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold mb-4">Export Reports</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Button
-                        onClick={() => exportData('bookings')}
-                        variant="outline"
-                        icon={<Download className="h-4 w-4" />}
-                        fullWidth
-                      >
-                        Export Bookings Report
-                      </Button>
-                      <Button
-                        onClick={() => exportData('earnings')}
-                        variant="outline"
-                        icon={<Download className="h-4 w-4" />}
-                        fullWidth
-                      >
-                        Export Financial Report
-                      </Button>
-                      <Button
-                        onClick={() => exportData('providers')}
-                        variant="outline"
-                        icon={<Download className="h-4 w-4" />}
-                        fullWidth
-                      >
-                        Export Provider Report
-                      </Button>
+                  {/* Platform Health */}
+                  <div className="bg-white p-6 rounded-lg border">
+                    <h3 className="text-lg font-semibold mb-4">Platform Health</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{stats.activeUsers}</div>
+                        <div className="text-sm text-gray-600">Active Providers</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{stats.avgRating.toFixed(1)}</div>
+                        <div className="text-sm text-gray-600">Platform Rating</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{stats.totalContacts}</div>
+                        <div className="text-sm text-gray-600">Total Inquiries</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {stats.totalBookings > 0 
+                            ? Math.round((stats.pendingBookings / stats.totalBookings) * 100)
+                            : 0}%
+                        </div>
+                        <div className="text-sm text-gray-600">Pending Rate</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
-
-              {/* Include other existing tab contents with similar enhancements */}
-              {/* ... (providers, bookings, contacts, support, roles, earnings, analytics tabs remain similar to previous implementation) ... */}
             </div>
           </div>
         </div>
