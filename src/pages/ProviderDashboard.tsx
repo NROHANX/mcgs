@@ -401,6 +401,19 @@ const ProviderDashboard: React.FC = () => {
     return matchesFilter && matchesSearch;
   });
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="h-5 w-5 text-orange-500" />;
+      case 'completed':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'cancelled':
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
