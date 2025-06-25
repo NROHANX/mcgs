@@ -93,7 +93,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }) => {
               
               {/* Service Suggestions Dropdown */}
               {showSuggestions && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-xl border border-white/20 z-50">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-xl border border-white/20 z-[1000]">
                   <div className="flex flex-wrap gap-2 mb-2">
                     {['RO Service', 'AC Repair', 'Electrician', 'Plumber'].map((suggestion, index) => (
                       <button
@@ -134,7 +134,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }) => {
             </div>
             
             {/* Location Input with Google Maps */}
-            <div className="relative md:w-1/3 z-20">
+            <div className="relative md:w-1/3 z-[1001]">
               <GoogleMapsAutocomplete
                 value={location}
                 onChange={handleLocationChange}
