@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, Users, Clock, CheckCircle, Zap, AlertTriangle } from 'lucide-react';
+import { Star, Users, Clock, CheckCircle, Zap, AlertTriangle, Calendar } from 'lucide-react';
 import { ServiceCategory } from '../../data/serviceCategories';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -39,7 +39,6 @@ const ServiceCategoryCard: React.FC<ServiceCategoryCardProps> = ({ category, onC
   return (
     <Card 
       hoverable 
-      onClick={onClick} 
       className="h-full flex flex-col group overflow-hidden bg-white border-2 border-transparent hover:border-blue-200 transition-all duration-500 hover:shadow-2xl"
     >
       <div className="p-6 flex-grow flex flex-col">
@@ -117,18 +116,19 @@ const ServiceCategoryCard: React.FC<ServiceCategoryCardProps> = ({ category, onC
           </div>
         </div>
         
-        {/* Action Button */}
+        {/* Booking Button */}
         <div className="mt-auto">
           <Button 
             variant="primary" 
             fullWidth
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+            icon={<Calendar className="h-4 w-4" />}
             onClick={(e) => {
               e.stopPropagation();
               onClick();
             }}
           >
-            Book {category.name}
+            Book Now
           </Button>
         </div>
       </div>

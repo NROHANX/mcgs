@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Droplet, Wrench, Scissors, Palette, Trash, Flower, Monitor, ArrowRight, Settings, Hammer, Wind } from 'lucide-react';
+import { Zap, Droplet, Wrench, Scissors, Palette, Trash, Flower, Monitor, Calendar, Settings, Hammer, Wind } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const ServicesBanner: React.FC = () => {
@@ -80,14 +80,6 @@ const ServicesBanner: React.FC = () => {
     },
   ];
 
-  const handleServiceClick = (serviceName: string) => {
-    navigate('/services', { state: { serviceName } });
-  };
-
-  const handleViewAllClick = () => {
-    navigate('/services');
-  };
-
   const getAvailabilityColor = (availability: string) => {
     switch (availability) {
       case 'Available Now':
@@ -99,6 +91,14 @@ const ServicesBanner: React.FC = () => {
       default:
         return 'text-gray-600';
     }
+  };
+
+  const handleServiceClick = (serviceName: string) => {
+    navigate('/services', { state: { serviceName } });
+  };
+
+  const handleViewAllClick = () => {
+    navigate('/services');
   };
 
   return (
@@ -163,7 +163,8 @@ const ServicesBanner: React.FC = () => {
                 
                 {/* Hover Text Effect */}
                 <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
+                  <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap flex items-center">
+                    <Calendar className="h-3 w-3 mr-1" />
                     Book now
                   </div>
                 </div>
@@ -183,7 +184,7 @@ const ServicesBanner: React.FC = () => {
           >
             <span className="text-gray-700 font-medium mr-2 group-hover:text-blue-600 transition-colors">View All Services</span>
             <div className="relative">
-              <ArrowRight className="h-4 w-4 text-blue-600 group-hover:translate-x-1 transition-transform duration-300" />
+              <Calendar className="h-4 w-4 text-blue-600 group-hover:translate-x-1 transition-transform duration-300" />
               <div className="absolute inset-0 bg-blue-600 rounded-full opacity-0 group-hover:opacity-20 group-hover:scale-150 transition-all duration-300"></div>
             </div>
           </div>

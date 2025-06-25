@@ -5,7 +5,7 @@ import {
   Star,
   Users,
   Clock,
-  ArrowRight,
+  Calendar,
   Phone,
   CheckCircle,
   Award
@@ -198,7 +198,7 @@ const Services: React.FC = () => {
                   }}
                   size="lg"
                   className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
-                  icon={<ArrowRight className="h-5 w-5" />}
+                  icon={<Calendar className="h-5 w-5" />}
                 >
                   Book Any Service
                 </Button>
