@@ -166,11 +166,11 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
         </div>
       </div>
       
-      {/* Enhanced Popular Locations Dropdown */}
+      {/* Fixed Popular Locations Modal - Removed backdrop blur and increased z-index */}
       {showSuggestions && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 z-[9999] flex items-center justify-center" onClick={handleCloseModal}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[99999] flex items-center justify-center" onClick={handleCloseModal}>
           <div 
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto m-4"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto m-4 relative"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
