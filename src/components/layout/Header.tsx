@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, User, LogIn, LogOut } from 'lucide-react';
+import { Menu, X, User, LogIn, LogOut, Settings } from 'lucide-react';
 import Button from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import AuthModal from '../auth/AuthModal';
-import { supabase } from '../../lib/supabase';
 
 interface HeaderProps {
   onCategoryClick: (categoryId: string) => void;
@@ -15,36 +14,7 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
-  const [isProvider, setIsProvider] = useState(false);
-  const [checkingProvider, setCheckingProvider] = useState(false);
-  const { user, signOut } = useAuth();
-
-  // Check if user is a provider
-  useEffect(() => {
-    const checkProviderStatus = async () => {
-      if (user) {
-        setCheckingProvider(true);
-        try {
-          const { data: providerData } = await supabase
-            .from('service_providers')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
-
-          setIsProvider(!!providerData);
-        } catch (error) {
-          setIsProvider(false);
-        } finally {
-          setCheckingProvider(false);
-        }
-      } else {
-        setIsProvider(false);
-        setCheckingProvider(false);
-      }
-    };
-
-    checkProviderStatus();
-  }, [user]);
+  const { user, userProfile, signOut } = useAuth();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -63,38 +33,19 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
   const handleProfileClick = () => {
     setIsMenuOpen(false);
     
-    if (isProvider) {
-      // If user is a provider, redirect to provider dashboard
+    if (userProfile?.user_type === 'admin') {
+      navigate('/admin');
+    } else if (userProfile?.user_type === 'provider') {
       navigate('/provider-dashboard');
     } else {
-      // If user is a customer, redirect to customer profile
       navigate('/profile');
     }
   };
 
   const handleHomeClick = () => {
     navigate('/');
-    // Close mobile menu if open
     setIsMenuOpen(false);
   };
-
-  const handleServicesClick = () => {
-    navigate('/services');
-    setIsMenuOpen(false);
-  };
-
-  const handleAboutClick = () => {
-    navigate('/about');
-    setIsMenuOpen(false);
-  };
-
-  const handleContactClick = () => {
-    navigate('/contact');
-    setIsMenuOpen(false);
-  };
-
-  // Check if user is admin
-  const isAdmin = user?.email === 'ashish15.nehamaiyah@gmail.com';
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -117,48 +68,30 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
               Home
             </button>
             
-            <button 
-              onClick={handleServicesClick}
-              className="text-gray-700 hover:text-blue-600 transition-colors"
-            >
+            <Link to="/services" className="text-gray-700 hover:text-blue-600 transition-colors">
               Services
-            </button>
+            </Link>
             
-            <button 
-              onClick={handleAboutClick}
-              className="text-gray-700 hover:text-blue-600 transition-colors"
-            >
+            <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors">
               About Us
-            </button>
-            <button 
-              onClick={handleContactClick}
-              className="text-gray-700 hover:text-blue-600 transition-colors"
-            >
+            </Link>
+            
+            <Link to="/contact" className="text-gray-700 hover:text-blue-600 transition-colors">
               Contact Us
-            </button>
+            </Link>
           </nav>
 
           <div className="hidden md:flex items-center space-x-4">
-            {user ? (
+            {user && userProfile ? (
               <>
                 <Button 
                   variant="outline" 
                   icon={<User className="h-4 w-4" />}
                   onClick={handleProfileClick}
-                  disabled={checkingProvider}
                 >
-                  {checkingProvider ? 'Loading...' : (isProvider ? 'My Dashboard' : 'My Profile')}
+                  {userProfile.user_type === 'admin' ? 'Admin Panel' :
+                   userProfile.user_type === 'provider' ? 'Dashboard' : 'Profile'}
                 </Button>
-                {isAdmin && (
-                  <Link to="/admin">
-                    <Button 
-                      variant="outline"
-                      className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-                    >
-                      Admin Panel
-                    </Button>
-                  </Link>
-                )}
                 <Button 
                   variant="outline" 
                   icon={<LogOut className="h-4 w-4" />}
@@ -205,49 +138,31 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
               Home
             </button>
             
-            <button 
-              onClick={handleServicesClick}
-              className="text-gray-700 hover:text-blue-600 transition-colors py-2 text-left"
-            >
+            <Link to="/services" className="text-gray-700 hover:text-blue-600 transition-colors py-2">
               Services
-            </button>
+            </Link>
             
-            <button 
-              onClick={handleAboutClick}
-              className="text-gray-700 hover:text-blue-600 transition-colors py-2 text-left"
-            >
+            <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors py-2">
               About Us
-            </button>
-            <button 
-              onClick={handleContactClick}
-              className="text-gray-700 hover:text-blue-600 transition-colors py-2 text-left"
-            >
+            </Link>
+            
+            <Link to="/contact" className="text-gray-700 hover:text-blue-600 transition-colors py-2">
               Contact Us
-            </button>
+            </Link>
           </nav>
+          
           <div className="flex flex-col space-y-2 pt-2 pb-4">
-            {user ? (
+            {user && userProfile ? (
               <>
                 <Button 
                   variant="outline" 
                   fullWidth 
                   icon={<User className="h-4 w-4" />}
                   onClick={handleProfileClick}
-                  disabled={checkingProvider}
                 >
-                  {checkingProvider ? 'Loading...' : (isProvider ? 'My Dashboard' : 'My Profile')}
+                  {userProfile.user_type === 'admin' ? 'Admin Panel' :
+                   userProfile.user_type === 'provider' ? 'Dashboard' : 'Profile'}
                 </Button>
-                {isAdmin && (
-                  <Link to="/admin">
-                    <Button 
-                      variant="outline" 
-                      fullWidth 
-                      className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-                    >
-                      Admin Panel
-                    </Button>
-                  </Link>
-                )}
                 <Button 
                   variant="outline" 
                   fullWidth 

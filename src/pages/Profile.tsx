@@ -1,416 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, 
-  Settings, 
-  Bell, 
-  LogOut, 
-  Calendar, 
-  CreditCard, 
-  Package, 
-  MessageSquare, 
-  Plus,
-  Star,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Download,
-  Eye,
-  Filter,
-  Search,
-  TrendingUp,
-  Award,
-  Shield,
-  Phone,
-  Mail,
-  MapPin,
-  Heart,
-  Home,
-  Briefcase,
-  FileText
-} from 'lucide-react';
+import { User, Mail, Calendar, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
-import Button from '../components/ui/Button';
-import GoogleMapsAutocomplete from '../components/ui/GoogleMapsAutocomplete';
-import SupportTicket from '../components/ui/SupportTicket';
-import CreateTicketModal from '../components/ui/CreateTicketModal';
-import ServiceBookingModal from '../components/ui/ServiceBookingModal';
-import { supabase } from '../lib/supabase';
-import toast from 'react-hot-toast';
-
-interface UserProfile {
-  name: string;
-  email: string;
-  phone: string;
-  location: string;
-  completeAddress: string;
-  bio: string;
-  preferences: {
-    notifications: boolean;
-    emailUpdates: boolean;
-    smsAlerts: boolean;
-  };
-}
-
-interface ServiceBooking {
-  id: string;
-  service_name: string;
-  service_address: string;
-  preferred_date: string;
-  preferred_time_slot: string;
-  status: string;
-  estimated_price: number;
-  urgency: string;
-  created_at: string;
-  provider_name?: string;
-  provider_contact?: string;
-}
-
-interface SupportTicketData {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  priority: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface CustomerStats {
-  totalServices: number;
-  completedServices: number;
-  pendingServices: number;
-  cancelledServices: number;
-  totalSpent: number;
-  averageRating: number;
-  favoriteCategory: string;
-  memberSince: string;
-}
+import { supabase, Booking } from '../lib/supabase';
 
 const Profile: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, userProfile } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'profile' | 'bookings' | 'subscription' | 'support' | 'settings'>('profile');
-  const [isProvider, setIsProvider] = useState(false);
-  const [profile, setProfile] = useState<UserProfile>({
-    name: '',
-    email: '',
-    phone: '',
-    location: '',
-    completeAddress: '',
-    bio: '',
-    preferences: {
-      notifications: true,
-      emailUpdates: true,
-      smsAlerts: false
-    }
-  });
-  const [serviceBookings, setServiceBookings] = useState<ServiceBooking[]>([]);
-  const [supportTickets, setSupportTickets] = useState<SupportTicketData[]>([]);
-  const [customerStats, setCustomerStats] = useState<CustomerStats>({
-    totalServices: 0,
-    completedServices: 0,
-    pendingServices: 0,
-    cancelledServices: 0,
-    totalSpent: 0,
-    averageRating: 0,
-    favoriteCategory: '',
-    memberSince: ''
-  });
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isCreateTicketModalOpen, setIsCreateTicketModalOpen] = useState(false);
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [serviceFilter, setServiceFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBooking, setSelectedBooking] = useState<ServiceBooking | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !userProfile) {
       navigate('/');
       return;
     }
 
-    fetchUserData();
-  }, [user, navigate]);
+    if (userProfile.user_type !== 'customer') {
+      navigate('/');
+      return;
+    }
 
-  const fetchUserData = async () => {
+    fetchBookings();
+  }, [user, userProfile, navigate]);
+
+  const fetchBookings = async () => {
     try {
-      setLoading(true);
-
-      // Check if user is a provider
-      const { data: providerData } = await supabase
-        .from('service_providers')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (providerData) {
-        setIsProvider(true);
-        setProfile({
-          name: providerData.name,
-          email: user?.email || '',
-          phone: providerData.contact || '',
-          location: providerData.location || '',
-          completeAddress: providerData.complete_address || '',
-          bio: providerData.description || '',
-          preferences: {
-            notifications: true,
-            emailUpdates: true,
-            smsAlerts: false
-          }
-        });
-      } else {
-        setProfile({
-          name: user?.email?.split('@')[0] || '',
-          email: user?.email || '',
-          phone: '',
-          location: '',
-          completeAddress: '',
-          bio: '',
-          preferences: {
-            notifications: true,
-            emailUpdates: true,
-            smsAlerts: false
-          }
-        });
-      }
-
-      // Fetch service bookings
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from('service_bookings')
+      const { data, error } = await supabase
+        .from('bookings')
         .select('*')
         .eq('customer_id', user?.id)
         .order('created_at', { ascending: false });
 
-      if (bookingsError) {
-        console.error('Error fetching bookings:', bookingsError);
-        setServiceBookings([]);
-      } else {
-        // For each booking, try to fetch assigned provider details
-        const processedBookings: ServiceBooking[] = [];
-        
-        if (bookingsData && bookingsData.length > 0) {
-          for (const booking of bookingsData) {
-            let providerName = undefined;
-            let providerContact = undefined;
-            
-            // Try to fetch assigned provider
-            try {
-              const { data: assignmentData, error: assignmentError } = await supabase
-                .from('booking_assignments')
-                .select('provider_id')
-                .eq('booking_id', booking.id)
-                .single();
-              
-              if (!assignmentError && assignmentData) {
-                // Fetch provider details
-                const { data: providerData, error: providerError } = await supabase
-                  .from('service_providers')
-                  .select('name, contact')
-                  .eq('id', assignmentData.provider_id)
-                  .single();
-                
-                if (!providerError && providerData) {
-                  providerName = providerData.name;
-                  providerContact = providerData.contact;
-                }
-              }
-            } catch (error) {
-              console.log('Could not fetch provider for booking:', booking.id);
-            }
-
-            processedBookings.push({
-              id: booking.id,
-              service_name: booking.service_name,
-              service_address: booking.service_address,
-              preferred_date: booking.preferred_date,
-              preferred_time_slot: booking.preferred_time_slot,
-              status: booking.status,
-              estimated_price: booking.estimated_price,
-              urgency: booking.urgency,
-              created_at: booking.created_at,
-              provider_name: providerName,
-              provider_contact: providerContact
-            });
-          }
-        }
-        
-        setServiceBookings(processedBookings);
-      }
-
-      // Fetch support tickets
-      const { data: ticketsData, error: ticketsError } = await supabase
-        .from('support_tickets')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (ticketsError) {
-        console.error('Error fetching support tickets:', ticketsError);
-        setSupportTickets([]);
-      } else {
-        setSupportTickets(ticketsData || []);
-      }
-
-      // Calculate customer statistics
-      const processedBookings = serviceBookings.length > 0 ? serviceBookings : [];
-      
-      const totalSpent = processedBookings
-        .filter(s => s.status === 'completed')
-        .reduce((sum, s) => sum + s.estimated_price, 0);
-
-      const completedServices = processedBookings.filter(s => s.status === 'completed').length;
-      const pendingServices = processedBookings.filter(s => ['pending', 'assigned'].includes(s.status)).length;
-      const cancelledServices = processedBookings.filter(s => s.status === 'cancelled').length;
-
-      // Calculate favorite category (most booked service type)
-      const categoryCount: { [key: string]: number } = {};
-      processedBookings.forEach(service => {
-        const category = service.service_name.split(' ')[0]; // Simple category extraction
-        categoryCount[category] = (categoryCount[category] || 0) + 1;
-      });
-      
-      const favoriteCategory = Object.keys(categoryCount).length > 0 
-        ? Object.keys(categoryCount).reduce((a, b) => categoryCount[a] > categoryCount[b] ? a : b, 'None')
-        : 'None';
-
-      setCustomerStats({
-        totalServices: processedBookings.length,
-        completedServices,
-        pendingServices,
-        cancelledServices,
-        totalSpent,
-        averageRating: 4.5, // This would come from actual ratings given by customer
-        favoriteCategory,
-        memberSince: user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'
-      });
-
+      if (error) throw error;
+      setBookings(data || []);
     } catch (error) {
-      console.error('Error fetching user data:', error);
-      toast.error('Failed to load profile data');
+      console.error('Error fetching bookings:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLocationChange = (value: string, placeDetails?: google.maps.places.PlaceResult) => {
-    setProfile({ ...profile, location: value });
-    
-    // If we have place details, we could store additional information
-    if (placeDetails) {
-      console.log('Selected place:', placeDetails);
-      // You could store latitude/longitude or other details if needed
-    }
-  };
-
-  const handleProfileUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (isProvider) {
-        const { error } = await supabase
-          .from('service_providers')
-          .update({
-            name: profile.name,
-            contact: profile.phone,
-            location: profile.location,
-            complete_address: profile.completeAddress,
-            description: profile.bio
-          })
-          .eq('user_id', user?.id);
-
-        if (error) throw error;
-      }
-
-      toast.success('Profile updated successfully!');
-    } catch (error) {
-      toast.error('Failed to update profile');
-    }
-  };
-
-  const handleTicketCreated = () => {
-    fetchUserData();
-  };
-
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/');
-  };
-
-  const exportServiceHistory = () => {
-    if (serviceBookings.length === 0) {
-      toast.error('No service history to export');
-      return;
-    }
-
-    const csvContent = [
-      'Service,Date,Status,Amount,Created',
-      ...serviceBookings.map(service => 
-        `"${service.service_name}","${service.preferred_date ? new Date(service.preferred_date).toLocaleDateString() : 'Flexible'}","${service.status}","₹${service.estimated_price}","${new Date(service.created_at).toLocaleDateString()}"`
-      )
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'service_history.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast.success('Service history exported successfully');
-  };
-
-  const filteredServices = serviceBookings.filter(service => {
-    const matchesFilter = serviceFilter === 'all' || service.status === serviceFilter;
-    const matchesSearch = service.service_name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
         return <Clock className="h-5 w-5 text-orange-500" />;
-      case 'assigned':
-        return <User className="h-5 w-5 text-blue-500" />;
       case 'completed':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'cancelled':
         return <XCircle className="h-5 w-5 text-red-500" />;
       default:
-        return null;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-orange-100 text-orange-800';
-      case 'assigned':
-        return 'bg-blue-100 text-blue-800';
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case 'urgent':
-        return 'bg-red-100 text-red-800';
-      case 'high':
-        return 'bg-orange-100 text-orange-800';
-      case 'normal':
-        return 'bg-blue-100 text-blue-800';
-      case 'low':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+        return <Clock className="h-5 w-5 text-blue-500" />;
     }
   };
 
@@ -430,813 +72,89 @@ const Profile: React.FC = () => {
       <Header onCategoryClick={() => {}} />
       
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            {/* Enhanced Header with Customer Stats */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-8">
-              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between">
-                <div className="flex items-center mb-6 lg:mb-0">
-                  <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center mr-6">
-                    <User className="h-10 w-10 text-blue-600" />
-                  </div>
-                  <div className="text-white">
-                    <h1 className="text-3xl font-bold">{profile.name || 'Welcome'}</h1>
-                    <p className="text-blue-100">{profile.email}</p>
-                    <div className="flex items-center mt-2">
-                      {isProvider && (
-                        <span className="inline-block bg-blue-500 text-white px-3 py-1 rounded-full text-sm mr-3">
-                          Service Provider
-                        </span>
-                      )}
-                      <span className="inline-block bg-green-500 text-white px-3 py-1 rounded-full text-sm">
-                        Customer since {customerStats.memberSince}
-                      </span>
-                    </div>
-                  </div>
+        <div className="max-w-4xl mx-auto">
+          {/* Profile Header */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div className="flex items-center">
+              <div className="bg-blue-100 rounded-full p-4 mr-4">
+                <User className="h-8 w-8 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">{userProfile?.full_name}</h1>
+                <div className="flex items-center text-gray-600 mt-1">
+                  <Mail className="h-4 w-4 mr-2" />
+                  {userProfile?.email}
                 </div>
-
-                {/* Quick Stats */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-white">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-400">{customerStats.totalServices}</div>
-                    <div className="text-sm text-blue-100">Total Services</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-400">₹{customerStats.totalSpent.toLocaleString()}</div>
-                    <div className="text-sm text-blue-100">Total Spent</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-400">{customerStats.averageRating}★</div>
-                    <div className="text-sm text-blue-100">Avg Rating Given</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-400">{customerStats.favoriteCategory}</div>
-                    <div className="text-sm text-blue-100">Favorite Service</div>
-                  </div>
+                <div className="flex items-center text-gray-600 mt-1">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Member since {new Date(userProfile?.created_at || '').toLocaleDateString()}
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-col lg:flex-row">
-              {/* Enhanced Sidebar */}
-              <div className="w-full lg:w-1/4 bg-gray-50 p-6">
-                <nav className="space-y-2">
-                  <button
-                    className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                      activeTab === 'profile'
-                        ? 'bg-blue-100 text-blue-700 font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setActiveTab('profile')}
-                  >
-                    <User className="h-5 w-5 mr-3" />
-                    My Profile
-                  </button>
-                  
-                  <button
-                    className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                      activeTab === 'bookings'
-                        ? 'bg-blue-100 text-blue-700 font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setActiveTab('bookings')}
-                  >
-                    <Calendar className="h-5 w-5 mr-3" />
-                    My Bookings
-                    {customerStats.pendingServices > 0 && (
-                      <span className="ml-auto bg-orange-500 text-white text-xs rounded-full px-2 py-1">
-                        {customerStats.pendingServices}
-                      </span>
-                    )}
-                  </button>
-                  
-                  <button
-                    className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                      activeTab === 'subscription'
-                        ? 'bg-blue-100 text-blue-700 font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setActiveTab('subscription')}
-                  >
-                    <Package className="h-5 w-5 mr-3" />
-                    Subscription
-                  </button>
-
-                  <button
-                    className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                      activeTab === 'support'
-                        ? 'bg-blue-100 text-blue-700 font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setActiveTab('support')}
-                  >
-                    <MessageSquare className="h-5 w-5 mr-3" />
-                    Support Tickets
-                    {supportTickets.filter(t => t.status === 'open').length > 0 && (
-                      <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1">
-                        {supportTickets.filter(t => t.status === 'open').length}
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                      activeTab === 'settings'
-                        ? 'bg-blue-100 text-blue-700 font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setActiveTab('settings')}
-                  >
-                    <Settings className="h-5 w-5 mr-3" />
-                    Settings
-                  </button>
-                  
-                  <button
-                    className="w-full flex items-center px-4 py-3 text-left rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    <Bell className="h-5 w-5 mr-3" />
-                    Notifications
-                  </button>
-                  
-                  <button
-                    className="w-full flex items-center px-4 py-3 text-left rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="h-5 w-5 mr-3" />
-                    Logout
-                  </button>
-                </nav>
-              </div>
-
-              {/* Main Content */}
-              <div className="flex-1 p-6">
-                {activeTab === 'profile' && (
-                  <div>
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-2xl font-bold">Profile Information</h2>
-                      <div className="flex items-center space-x-2">
-                        <Shield className="h-5 w-5 text-green-500" />
-                        <span className="text-sm text-green-600 font-medium">Verified Account</span>
-                      </div>
-                    </div>
-                    
-                    <form onSubmit={handleProfileUpdate} className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Full Name *
-                          </label>
-                          <div className="relative">
-                            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                            <input
-                              type="text"
-                              value={profile.name}
-                              onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="Enter your full name"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Email
-                          </label>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                            <input
-                              type="email"
-                              value={profile.email}
-                              disabled
-                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Phone Number *
-                          </label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                            <input
-                              type="tel"
-                              value={profile.phone}
-                              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="+91 98765 43210"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Location
-                          </label>
-                          <GoogleMapsAutocomplete
-                            value={profile.location}
-                            onChange={handleLocationChange}
-                            placeholder="Search for your location"
-                            className="text-sm"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            🗺️ Use Google Maps to select your precise location
-                          </p>
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Complete Address
-                          </label>
-                          <div className="relative">
-                            <Home className="absolute left-3 top-3 text-gray-400 h-5 w-5" />
-                            <textarea
-                              value={profile.completeAddress}
-                              onChange={(e) => setProfile({ ...profile, completeAddress: e.target.value })}
-                              rows={3}
-                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                              placeholder="Enter your complete address including house/flat number, street, area, city, state, pincode"
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Provide your full address for accurate service delivery
-                          </p>
-                        </div>
-                      </div>
-
-                      <Button type="submit" icon={<Settings className="h-4 w-4" />}>
-                        Save Changes
-                      </Button>
-                    </form>
-
-                    {/* Customer Statistics */}
-                    <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-green-50 rounded-lg p-6">
-                        <div className="flex items-center">
-                          <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
+          {/* Bookings Section */}
+          <div className="bg-white rounded-lg shadow-md">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold">My Bookings</h2>
+            </div>
+            
+            <div className="p-6">
+              {bookings.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p>No bookings found</p>
+                  <p className="text-sm">Book a service to see your bookings here</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {bookings.map((booking) => (
+                    <div
+                      key={booking.id}
+                      className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          {getStatusIcon(booking.status)}
                           <div>
-                            <div className="text-2xl font-bold text-green-600">{customerStats.completedServices}</div>
-                            <div className="text-sm text-green-700">Completed Services</div>
+                            <h3 className="font-medium text-gray-900">{booking.service_name}</h3>
+                            <p className="text-sm text-gray-500">{booking.service_address}</p>
+                            <p className="text-sm text-gray-500">
+                              {booking.preferred_date 
+                                ? `Scheduled: ${new Date(booking.preferred_date).toLocaleDateString()}`
+                                : 'Flexible timing'
+                              }
+                            </p>
                           </div>
                         </div>
-                      </div>
-                      <div className="bg-blue-50 rounded-lg p-6">
-                        <div className="flex items-center">
-                          <TrendingUp className="h-8 w-8 text-blue-600 mr-3" />
-                          <div>
-                            <div className="text-2xl font-bold text-blue-600">₹{customerStats.totalSpent.toLocaleString()}</div>
-                            <div className="text-sm text-blue-700">Total Investment</div>
-                          </div>
+                        <div className="text-right">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            booking.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            booking.status === 'pending' ? 'bg-orange-100 text-orange-800' :
+                            booking.status === 'assigned' ? 'bg-blue-100 text-blue-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {booking.status}
+                          </span>
+                          {booking.amount > 0 && (
+                            <p className="text-sm text-gray-500 mt-1">₹{booking.amount}</p>
+                          )}
                         </div>
                       </div>
-                      <div className="bg-yellow-50 rounded-lg p-6">
-                        <div className="flex items-center">
-                          <Award className="h-8 w-8 text-yellow-600 mr-3" />
-                          <div>
-                            <div className="text-2xl font-bold text-yellow-600">{customerStats.averageRating}★</div>
-                            <div className="text-sm text-yellow-700">Average Rating</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'bookings' && (
-                  <div>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
-                      <h2 className="text-2xl font-bold mb-4 sm:mb-0">My Service Bookings</h2>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <Button
-                          onClick={exportServiceHistory}
-                          variant="outline"
-                          icon={<Download className="h-4 w-4" />}
-                        >
-                          Export History
-                        </Button>
-                        <Button
-                          onClick={() => setIsBookingModalOpen(true)}
-                          icon={<Plus className="h-4 w-4" />}
-                        >
-                          Book New Service
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Service Statistics */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
-                        <div className="text-2xl font-bold text-gray-900">{customerStats.totalServices}</div>
-                        <div className="text-sm text-gray-600">Total Services</div>
-                      </div>
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
-                        <div className="text-2xl font-bold text-green-600">{customerStats.completedServices}</div>
-                        <div className="text-sm text-gray-600">Completed</div>
-                      </div>
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
-                        <div className="text-2xl font-bold text-orange-600">{customerStats.pendingServices}</div>
-                        <div className="text-sm text-gray-600">Pending/Assigned</div>
-                      </div>
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
-                        <div className="text-2xl font-bold text-red-600">{customerStats.cancelledServices}</div>
-                        <div className="text-sm text-gray-600">Cancelled</div>
-                      </div>
-                    </div>
-
-                    {/* Filters */}
-                    <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                        <input
-                          type="text"
-                          placeholder="Search services..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div className="relative">
-                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                        <select
-                          value={serviceFilter}
-                          onChange={(e) => setServiceFilter(e.target.value)}
-                          className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="all">All Status</option>
-                          <option value="pending">Pending</option>
-                          <option value="assigned">Assigned</option>
-                          <option value="completed">Completed</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </div>
-                    </div>
-                    
-                    {filteredServices.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500 mb-4">
-                          {serviceBookings.length === 0 ? 'No services booked yet' : 'No services match your filters'}
-                        </p>
-                        <Button onClick={() => setIsBookingModalOpen(true)}>
-                          Book Your First Service
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {filteredServices.map(booking => (
-                          <div key={booking.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                            <div className="flex flex-col lg:flex-row lg:items-center justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center mb-2">
-                                  {getStatusIcon(booking.status)}
-                                  <h3 className="text-lg font-semibold ml-2">{booking.service_name}</h3>
-                                  <span className={`ml-3 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                                    {booking.status}
-                                  </span>
-                                  <span className={`ml-2 px-3 py-1 rounded-full text-xs font-medium ${getUrgencyColor(booking.urgency)}`}>
-                                    {booking.urgency}
-                                  </span>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
-                                  <div className="flex items-center">
-                                    <MapPin className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
-                                    <span className="truncate">{booking.service_address.substring(0, 30)}...</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Calendar className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
-                                    <span>
-                                      {booking.preferred_date 
-                                        ? new Date(booking.preferred_date).toLocaleDateString() 
-                                        : 'Flexible'
-                                      } ({booking.preferred_time_slot})
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <CreditCard className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
-                                    <span>₹{booking.estimated_price}</span>
-                                  </div>
-                                </div>
-
-                                {booking.provider_name && (
-                                  <div className="flex items-center text-sm text-gray-600 mb-2">
-                                    <User className="h-4 w-4 mr-2 text-blue-500 flex-shrink-0" />
-                                    <span className="font-medium">Assigned to:</span> {booking.provider_name}
-                                    {booking.provider_contact && (
-                                      <a 
-                                        href={`tel:${booking.provider_contact}`}
-                                        className="ml-2 text-blue-600 hover:text-blue-800"
-                                      >
-                                        <Phone className="h-4 w-4" />
-                                      </a>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex flex-col sm:flex-row gap-2 mt-4 lg:mt-0">
-                                {booking.status === 'completed' && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    icon={<Star className="h-4 w-4" />}
-                                  >
-                                    Rate Service
-                                  </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  icon={<Eye className="h-4 w-4" />}
-                                  onClick={() => setSelectedBooking(booking)}
-                                >
-                                  View Details
-                                </Button>
-                                {booking.status === 'pending' && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    icon={<XCircle className="h-4 w-4" />}
-                                    className="text-red-600 border-red-300 hover:bg-red-50"
-                                  >
-                                    Cancel
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'subscription' && (
-                  <div>
-                    <h2 className="text-2xl font-bold mb-6">Subscription & Membership</h2>
-                    
-                    <div className="bg-gray-50 rounded-lg p-8 text-center mb-8">
-                      <CreditCard className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold mb-2">Free Plan</h3>
-                      <p className="text-gray-600 mb-6">
-                        You're currently on our free plan. Upgrade to get premium features and priority support.
-                      </p>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-                        <div className="bg-white rounded-lg p-6 border-2 border-gray-200">
-                          <h4 className="text-lg font-semibold mb-2">Basic Plan</h4>
-                          <p className="text-3xl font-bold text-blue-600 mb-4">₹99<span className="text-sm text-gray-500">/month</span></p>
-                          <ul className="text-sm text-gray-600 space-y-2 mb-6">
-                            <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Priority booking</li>
-                            <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />24/7 customer support</li>
-                            <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Exclusive discounts</li>
-                            <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />No booking fees</li>
-                          </ul>
-                          <Button variant="outline" fullWidth>
-                            Upgrade to Basic
-                          </Button>
+                      {booking.description && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-sm text-gray-600">{booking.description}</p>
                         </div>
-                        
-                        <div className="bg-white rounded-lg p-6 border-2 border-blue-500">
-                          <h4 className="text-lg font-semibold mb-2">Premium Plan</h4>
-                          <p className="text-3xl font-bold text-blue-600 mb-4">₹199<span className="text-sm text-gray-500">/month</span></p>
-                          <ul className="text-sm text-gray-600 space-y-2 mb-6">
-                            <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />All Basic features</li>
-                            <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Instant booking confirmation</li>
-                            <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Premium providers only</li>
-                            <li className="flex items-center"><CheckCircle className="h-4 w-4 text-green-500 mr-2" />Service guarantee</li>
-                          </ul>
-                          <Button fullWidth>
-                            Upgrade to Premium
-                          </Button>
-                        </div>
-                      </div>
+                      )}
                     </div>
-
-                    {/* Membership Benefits */}
-                    <div className="bg-blue-50 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold text-blue-900 mb-4">Your Membership Benefits</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-center">
-                          <Heart className="h-5 w-5 text-red-500 mr-3" />
-                          <span>Loyalty rewards program</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Shield className="h-5 w-5 text-green-500 mr-3" />
-                          <span>Service quality guarantee</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Star className="h-5 w-5 text-yellow-500 mr-3" />
-                          <span>Priority customer support</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Award className="h-5 w-5 text-purple-500 mr-3" />
-                          <span>Exclusive member discounts</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'support' && (
-                  <div>
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-2xl font-bold">Support Tickets</h2>
-                      <Button
-                        onClick={() => setIsCreateTicketModalOpen(true)}
-                        icon={<Plus className="h-4 w-4" />}
-                      >
-                        Create Ticket
-                      </Button>
-                    </div>
-                    
-                    {supportTickets.length === 0 ? (
-                      <div className="text-center py-12">
-                        <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500 mb-4">No support tickets yet</p>
-                        <Button
-                          onClick={() => setIsCreateTicketModalOpen(true)}
-                          icon={<Plus className="h-4 w-4" />}
-                        >
-                          Create Your First Ticket
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {supportTickets.map(ticket => (
-                          <SupportTicket
-                            key={ticket.id}
-                            ticket={ticket}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'settings' && (
-                  <div>
-                    <h2 className="text-2xl font-bold mb-6">Account Settings</h2>
-                    
-                    <div className="space-y-8">
-                      {/* Notification Preferences */}
-                      <div className="bg-white border border-gray-200 rounded-lg p-6">
-                        <h3 className="text-lg font-semibold mb-4">Notification Preferences</h3>
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">Email Notifications</h4>
-                              <p className="text-sm text-gray-600">Receive booking updates and service reminders</p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={profile.preferences.emailUpdates}
-                              onChange={(e) => setProfile({
-                                ...profile,
-                                preferences: { ...profile.preferences, emailUpdates: e.target.checked }
-                              })}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">SMS Alerts</h4>
-                              <p className="text-sm text-gray-600">Get SMS notifications for urgent updates</p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={profile.preferences.smsAlerts}
-                              onChange={(e) => setProfile({
-                                ...profile,
-                                preferences: { ...profile.preferences, smsAlerts: e.target.checked }
-                              })}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">Push Notifications</h4>
-                              <p className="text-sm text-gray-600">Browser notifications for real-time updates</p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={profile.preferences.notifications}
-                              onChange={(e) => setProfile({
-                                ...profile,
-                                preferences: { ...profile.preferences, notifications: e.target.checked }
-                              })}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Account Security */}
-                      <div className="bg-white border border-gray-200 rounded-lg p-6">
-                        <h3 className="text-lg font-semibold mb-4">Account Security</h3>
-                        <div className="space-y-4">
-                          <Button variant="outline" className="w-full sm:w-auto">
-                            Change Password
-                          </Button>
-                          <Button variant="outline" className="w-full sm:w-auto">
-                            Enable Two-Factor Authentication
-                          </Button>
-                          <Button variant="outline" className="w-full sm:w-auto">
-                            Download Account Data
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Privacy Settings */}
-                      <div className="bg-white border border-gray-200 rounded-lg p-6">
-                        <h3 className="text-lg font-semibold mb-4">Privacy Settings</h3>
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">Profile Visibility</h4>
-                              <p className="text-sm text-gray-600">Allow service providers to see your profile</p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              defaultChecked
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">Service History</h4>
-                              <p className="text-sm text-gray-600">Show service history to providers for better recommendations</p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              defaultChecked
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Danger Zone */}
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                        <h3 className="text-lg font-semibold text-red-900 mb-4">Danger Zone</h3>
-                        <div className="space-y-4">
-                          <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50">
-                            Deactivate Account
-                          </Button>
-                          <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50">
-                            Delete Account
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </main>
-
-      {/* Booking Details Modal */}
-      {selectedBooking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <h3 className="text-xl font-semibold">Booking Details</h3>
-                <button
-                  onClick={() => setSelectedBooking(null)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-semibold text-blue-900">{selectedBooking.service_name}</h4>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedBooking.status)}`}>
-                      {selectedBooking.status}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex justify-between">
-                    <span className="text-sm text-blue-700">Estimated Price: ₹{selectedBooking.estimated_price}</span>
-                    <span className={`text-sm px-2 py-1 rounded-full ${getUrgencyColor(selectedBooking.urgency)}`}>
-                      {selectedBooking.urgency} priority
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Service Details</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-start">
-                        <MapPin className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
-                        <div>
-                          <p className="text-sm">{selectedBooking.service_address}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start">
-                        <Calendar className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
-                        <div>
-                          <p>
-                            {selectedBooking.preferred_date 
-                              ? new Date(selectedBooking.preferred_date).toLocaleDateString() 
-                              : 'Flexible date'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start">
-                        <Clock className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
-                        <div>
-                          <p className="capitalize">{selectedBooking.preferred_time_slot} time slot</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Assigned Provider</h4>
-                    {selectedBooking.provider_name ? (
-                      <div className="space-y-2">
-                        <div className="flex items-start">
-                          <User className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
-                          <div>
-                            <p className="font-medium">{selectedBooking.provider_name}</p>
-                          </div>
-                        </div>
-                        {selectedBooking.provider_contact && (
-                          <div className="flex items-start">
-                            <Phone className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
-                            <div>
-                              <p>{selectedBooking.provider_contact}</p>
-                              <a 
-                                href={`tel:${selectedBooking.provider_contact}`}
-                                className="text-sm text-blue-600 hover:text-blue-800"
-                              >
-                                Call Provider
-                              </a>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="bg-gray-50 rounded-lg p-4 text-center">
-                        <p className="text-gray-600">
-                          {selectedBooking.status === 'pending' 
-                            ? 'A technician will be assigned to your booking soon.' 
-                            : 'No technician assigned yet.'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex space-x-3 pt-4 border-t border-gray-200">
-                  <Button
-                    variant="outline"
-                    onClick={() => setSelectedBooking(null)}
-                    className="flex-1"
-                  >
-                    Close
-                  </Button>
-                  {selectedBooking.status === 'pending' && (
-                    <Button
-                      variant="outline"
-                      className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
-                      icon={<XCircle className="h-4 w-4" />}
-                    >
-                      Cancel Booking
-                    </Button>
-                  )}
-                  {selectedBooking.status === 'completed' && (
-                    <Button
-                      className="flex-1"
-                      icon={<Star className="h-4 w-4" />}
-                    >
-                      Rate Service
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <CreateTicketModal
-        isOpen={isCreateTicketModalOpen}
-        onClose={() => setIsCreateTicketModalOpen(false)}
-        onTicketCreated={handleTicketCreated}
-      />
-
-      <ServiceBookingModal
-        isOpen={isBookingModalOpen}
-        onClose={() => setIsBookingModalOpen(false)}
-        serviceName=""
-      />
 
       <Footer />
     </div>
