@@ -176,7 +176,6 @@ const ProviderRegistration: React.FC = () => {
           user_id: userId,
           name: formData.name,
           category: formData.category,
-          subcategory: null, // Remove subcategory
           description: formData.description,
           location: formData.location,
           contact: formData.contact,
@@ -245,6 +244,16 @@ const ProviderRegistration: React.FC = () => {
 
   const prevStep = () => {
     if (currentStep > (isEditMode ? 2 : 1)) setCurrentStep(currentStep - 1);
+  };
+
+  const handleBackClick = () => {
+    if (isEditMode) {
+      // If in edit mode (user is already a provider), go back to dashboard
+      navigate('/provider-dashboard');
+    } else {
+      // If in registration mode (new provider), go to become provider page
+      navigate('/become-provider');
+    }
   };
 
   const renderStepIndicator = () => {
@@ -560,13 +569,13 @@ const ProviderRegistration: React.FC = () => {
       <main className="flex-grow">
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-12">
           <div className="container mx-auto px-4">
-            <Link 
-              to="/become-provider" 
+            <button 
+              onClick={handleBackClick}
               className="inline-flex items-center text-white hover:text-blue-200 transition-colors mb-4"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />
-              Back to Provider Info
-            </Link>
+              {isEditMode ? 'Back to Dashboard' : 'Back to Provider Info'}
+            </button>
             <div className="text-center text-white">
               <h1 className="text-4xl font-bold mb-4">
                 {isEditMode ? 'Update Your Profile' : 'Service Provider Registration'}
