@@ -594,7 +594,7 @@ const ProviderDashboard: React.FC = () => {
                   onClick={() => setActiveTab('profile')}
                 >
                   <Settings className="h-4 w-4 inline mr-2" />
-                  Profile
+                  Update Profile
                 </button>
               </nav>
             </div>
@@ -951,14 +951,17 @@ const ProviderDashboard: React.FC = () => {
               )}
 
               {activeTab === 'profile' && profile && (
-                <div className="max-w-2xl">
-                  <h2 className="text-xl font-semibold mb-6">Profile Information</h2>
+                <div className="max-w-4xl">
+                  <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold mb-2">Update Your Profile</h2>
+                    <p className="text-gray-600">Update your service provider information</p>
+                  </div>
                   
                   <form onSubmit={handleProfileUpdate} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Business Name *
+                          Business/Service Name *
                         </label>
                         <div className="relative">
                           <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -974,7 +977,7 @@ const ProviderDashboard: React.FC = () => {
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Category
+                          Primary Category *
                         </label>
                         <div className="relative">
                           <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -989,22 +992,7 @@ const ProviderDashboard: React.FC = () => {
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Location *
-                        </label>
-                        <GoogleMapsAutocomplete
-                          value={profile.location}
-                          onChange={handleLocationChange}
-                          placeholder="Search for your service location"
-                          className="text-sm"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          🗺️ Use Google Maps to select your precise service location
-                        </p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Contact *
+                          Contact Number *
                         </label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -1016,6 +1004,34 @@ const ProviderDashboard: React.FC = () => {
                             placeholder="+91 98765 43210"
                           />
                         </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Status
+                        </label>
+                        <div className="flex items-center">
+                          <span className={`px-3 py-2 rounded-full text-sm font-medium ${
+                            profile.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {profile.available ? 'Available' : 'Offline'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Service Location *
+                        </label>
+                        <GoogleMapsAutocomplete
+                          value={profile.location}
+                          onChange={handleLocationChange}
+                          placeholder="Search for your service location"
+                          className="text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          🗺️ Use Google Maps to select your precise service location for better customer matching
+                        </p>
                       </div>
 
                       <div className="md:col-span-2">
@@ -1037,17 +1053,6 @@ const ProviderDashboard: React.FC = () => {
                         </p>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Status
-                        </label>
-                        <span className={`px-3 py-2 rounded-full text-sm font-medium ${
-                          profile.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {profile.available ? 'Available' : 'Offline'}
-                        </span>
-                      </div>
-                      
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Description
@@ -1059,13 +1064,13 @@ const ProviderDashboard: React.FC = () => {
                             onChange={(e) => setProfile({ ...profile, description: e.target.value })}
                             rows={4}
                             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                            placeholder="Describe your services and expertise..."
+                            placeholder="Describe your services, expertise, and what sets you apart from others..."
                           />
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex space-x-4">
+                    <div className="flex space-x-4 pt-6 border-t border-gray-200">
                       <Button type="submit" icon={<Settings className="h-4 w-4" />}>
                         Save Changes
                       </Button>
