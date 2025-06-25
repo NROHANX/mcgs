@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, MapPin, Sparkles } from 'lucide-react';
+import GoogleMapsAutocomplete from './GoogleMapsAutocomplete';
 
 interface SearchBarProps {
   onSearch: (query: string, location: string) => void;
@@ -13,6 +14,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(query, location);
+  };
+
+  const handleLocationChange = (value: string, placeDetails?: google.maps.places.PlaceResult) => {
+    setLocation(value);
+    
+    // If we have place details, we could extract more specific location info
+    if (placeDetails) {
+      console.log('Selected location:', placeDetails);
+      // You could extract city, state, etc. from placeDetails if needed
+    }
   };
 
   return (
@@ -34,13 +45,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }) => {
           </div>
           
           <div className="relative md:w-1/3">
-            <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <input
-              type="text"
-              placeholder="Your location"
+            <GoogleMapsAutocomplete
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 border-0 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all bg-transparent text-gray-900 placeholder-gray-500 font-medium"
+              onChange={handleLocationChange}
+              placeholder="Your location"
+              className="w-full py-4 border-0 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all bg-transparent text-gray-900 placeholder-gray-500 font-medium"
             />
           </div>
           
@@ -58,7 +67,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }) => {
       <div className="absolute top-full left-0 right-0 mt-2 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none">
         <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-xl border border-white/20">
           <div className="flex flex-wrap gap-2">
-            {['RO Service', 'Electrician', 'Plumber', 'AC Repair'].map((suggestion, index) => (
+            {['RO Service', 'AC Repair', 'Electrician', 'Plumber'].map((suggestion, index) => (
               <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
                 {suggestion}
               </span>
