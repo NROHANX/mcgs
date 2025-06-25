@@ -26,6 +26,8 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
+import SupportTicket from '../components/ui/SupportTicket';
+import CreateTicketModal from '../components/ui/CreateTicketModal';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -75,10 +77,21 @@ interface EarningData {
   booking_id: string;
 }
 
+interface SupportTicketData {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const ProviderDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'earnings' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'earnings' | 'support' | 'profile'>('overview');
   const [stats, setStats] = useState<ProviderStats>({
     totalBookings: 0,
     pendingBookings: 0,
@@ -92,10 +105,12 @@ const ProviderDashboard: React.FC = () => {
   });
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [earnings, setEarnings] = useState<EarningData[]>([]);
+  const [supportTickets, setSupportTickets] = useState<SupportTicketData[]>([]);
   const [profile, setProfile] = useState<ProviderProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCreateTicketModalOpen, setIsCreateTicketModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -137,7 +152,6 @@ const ProviderDashboard: React.FC = () => {
 
       if (bookingsError) {
         console.error('Error fetching bookings:', bookingsError);
-        // Don't throw error, just set empty array
         setBookings([]);
       } else {
         const processedBookings = bookingsData?.map(booking => ({
@@ -161,7 +175,6 @@ const ProviderDashboard: React.FC = () => {
 
       if (earningsError) {
         console.error('Error fetching earnings:', earningsError);
-        // Don't throw error, just set empty array
         setEarnings([]);
       } else {
         const processedEarnings = earningsData?.map(earning => ({
@@ -174,6 +187,20 @@ const ProviderDashboard: React.FC = () => {
           booking_id: earning.booking_id
         })) || [];
         setEarnings(processedEarnings);
+      }
+
+      // Fetch support tickets
+      const { data: ticketsData, error: ticketsError } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (ticketsError) {
+        console.error('Error fetching support tickets:', ticketsError);
+        setSupportTickets([]);
+      } else {
+        setSupportTickets(ticketsData || []);
       }
 
       // Calculate stats from the data we have
@@ -275,6 +302,10 @@ const ProviderDashboard: React.FC = () => {
     window.URL.revokeObjectURL(url);
     
     toast.success('Bookings exported successfully');
+  };
+
+  const handleTicketCreated = () => {
+    fetchProviderData();
   };
 
   const filteredBookings = bookings.filter(booking => {
@@ -436,6 +467,22 @@ const ProviderDashboard: React.FC = () => {
                 >
                   <DollarSign className="h-4 w-4 inline mr-2" />
                   Earnings
+                </button>
+                <button
+                  className={`px-6 py-3 font-medium text-sm focus:outline-none ${
+                    activeTab === 'support'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setActiveTab('support')}
+                >
+                  <MessageSquare className="h-4 w-4 inline mr-2" />
+                  Support Tickets
+                  {supportTickets.filter(t => t.status === 'open').length > 0 && (
+                    <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                      {supportTickets.filter(t => t.status === 'open').length}
+                    </span>
+                  )}
                 </button>
                 <button
                   className={`px-6 py-3 font-medium text-sm focus:outline-none ${
@@ -766,6 +813,42 @@ const ProviderDashboard: React.FC = () => {
                 </div>
               )}
 
+              {activeTab === 'support' && (
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold">Support Tickets</h2>
+                    <Button
+                      onClick={() => setIsCreateTicketModalOpen(true)}
+                      icon={<Plus className="h-4 w-4" />}
+                    >
+                      Create Ticket
+                    </Button>
+                  </div>
+                  
+                  {supportTickets.length === 0 ? (
+                    <div className="text-center py-12">
+                      <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-4">No support tickets yet</p>
+                      <Button
+                        onClick={() => setIsCreateTicketModalOpen(true)}
+                        icon={<Plus className="h-4 w-4" />}
+                      >
+                        Create Your First Ticket
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {supportTickets.map(ticket => (
+                        <SupportTicket
+                          key={ticket.id}
+                          ticket={ticket}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activeTab === 'profile' && profile && (
                 <div className="max-w-2xl">
                   <h2 className="text-xl font-semibold mb-6">Profile Information</h2>
@@ -850,6 +933,12 @@ const ProviderDashboard: React.FC = () => {
           </div>
         </div>
       </main>
+
+      <CreateTicketModal
+        isOpen={isCreateTicketModalOpen}
+        onClose={() => setIsCreateTicketModalOpen(false)}
+        onTicketCreated={handleTicketCreated}
+      />
 
       <Footer />
     </div>
