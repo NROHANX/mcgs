@@ -218,10 +218,10 @@ const AdminDashboard: React.FC = () => {
       const request = registrationRequests.find(r => r.id === requestId);
       if (!request) return;
 
-      // Create user account
+      // Create user account using Supabase Admin API
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: request.email,
-        password: 'temp123456', // Temporary password - user should reset
+        password: 'TempPass123!', // Temporary password - user should reset
         email_confirm: true
       });
 
@@ -253,9 +253,9 @@ const AdminDashboard: React.FC = () => {
                 user_id: authData.user.id,
                 name: request.provider_details.name || request.email.split('@')[0],
                 category: request.provider_details.category || 'General',
-                description: 'New service provider',
-                location: 'Not specified',
-                contact: 'Not specified',
+                description: 'New service provider - please update your profile',
+                location: 'Not specified - please update',
+                contact: 'Not specified - please update',
                 available: true
               }
             ]);
@@ -278,13 +278,13 @@ const AdminDashboard: React.FC = () => {
         if (updateError) throw updateError;
 
         toast.success(`${request.user_type} registration approved successfully!`);
-        toast.success('User account created and can now login.');
+        toast.success('User account created. They can now login with temporary password: TempPass123!');
         
         fetchAdminData();
       }
     } catch (error) {
       console.error('Error approving request:', error);
-      toast.error('Failed to approve request');
+      toast.error('Failed to approve request: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -625,6 +625,17 @@ const AdminDashboard: React.FC = () => {
                     >
                       Export
                     </Button>
+                  </div>
+
+                  {/* Important Notice */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-center">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
+                      <p className="text-yellow-800 text-sm">
+                        <strong>Important:</strong> When you approve a registration request, a user account will be created with temporary password: <code className="bg-yellow-200 px-1 rounded">TempPass123!</code>
+                        <br />Users should change this password on first login.
+                      </p>
+                    </div>
                   </div>
 
                   {/* Filters */}

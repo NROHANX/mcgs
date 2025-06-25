@@ -100,7 +100,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
             navigate('/admin');
           }
         } else {
-          // Customer or Provider signup - create registration request
+          // Customer or Provider signup - create registration request (NO USER ACCOUNT YET)
           const { error: requestError } = await supabase
             .from('user_registration_requests')
             .insert([
@@ -367,11 +367,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
               )}
 
               {(selectedRole === 'provider' || selectedRole === 'customer') && mode === 'signup' && (
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
                   <div className="flex items-center">
-                    <AlertTriangle className="h-4 w-4 text-blue-600 mr-2" />
-                    <p className="text-sm text-blue-800">
-                      Your account will be reviewed by an administrator before activation. You'll receive an email once approved.
+                    <AlertTriangle className="h-4 w-4 text-orange-600 mr-2" />
+                    <p className="text-sm text-orange-800">
+                      <strong>Important:</strong> Your registration will be submitted for admin approval. You will NOT be able to login until an administrator approves your account.
                     </p>
                   </div>
                 </div>
