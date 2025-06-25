@@ -1,8 +1,14 @@
 import React from 'react';
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, HelpCircle, Users, Shield, FileText } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Footer: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleBecomeProviderClick = () => {
+    navigate('/become-provider');
+  };
+
   return (
     <footer className="bg-gray-900 text-white">
       <div className="container mx-auto px-4 py-12">
@@ -38,7 +44,14 @@ const Footer: React.FC = () => {
               <li><Link to="/services" className="text-gray-400 hover:text-white transition-colors">Services</Link></li>
               <li><Link to="/about" className="text-gray-400 hover:text-white transition-colors">About Us</Link></li>
               <li><Link to="/contact" className="text-gray-400 hover:text-white transition-colors">Contact Us</Link></li>
-              <li><Link to="/become-provider" className="text-gray-400 hover:text-white transition-colors">Become a Service Provider</Link></li>
+              <li>
+                <button 
+                  onClick={handleBecomeProviderClick}
+                  className="text-gray-400 hover:text-white transition-colors text-left"
+                >
+                  Become a Service Provider
+                </button>
+              </li>
             </ul>
           </div>
 
