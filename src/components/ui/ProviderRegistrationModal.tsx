@@ -25,7 +25,6 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
   const [formData, setFormData] = useState({
     name: '',
     category: '',
-    subcategory: '',
     description: '',
     location: '',
     contact: '',
@@ -36,54 +35,44 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
     { 
       value: 'RO Technician', 
       label: 'RO Technician', 
-      subcategories: ['Installation', 'Maintenance', 'Repair', 'Filter Replacement'],
       icon: '💧'
     },
     { 
       value: 'AC Technician', 
       label: 'AC Technician', 
-      subcategories: ['Installation & Repair', 'Maintenance', 'Gas Refilling', 'Emergency Service'],
       icon: '❄️'
     },
     { 
       value: 'Electrician', 
       label: 'Electrician', 
-      subcategories: ['Residential', 'Commercial', 'Industrial', 'Emergency Services'],
       icon: '⚡'
     },
     { 
       value: 'Plumber', 
       label: 'Plumber', 
-      subcategories: ['Residential', 'Commercial', 'Emergency Services', 'Pipe Installation'],
       icon: '🔧'
     },
     { 
       value: 'Mechanic', 
       label: 'Mechanic', 
-      subcategories: ['Auto Repair', 'Bike Repair', 'Heavy Vehicles', 'Diagnostics'],
       icon: '🔩'
     },
     { 
       value: 'Carpenter', 
       label: 'Carpenter', 
-      subcategories: ['Furniture Making', 'Home Renovation', 'Custom Work', 'Repair'],
       icon: '🪚'
     },
     { 
       value: 'Painter', 
       label: 'Painter', 
-      subcategories: ['Interior', 'Exterior', 'Commercial', 'Decorative'],
       icon: '🎨'
     },
     { 
       value: 'Cleaner', 
       label: 'Cleaner', 
-      subcategories: ['Home Cleaning', 'Office Cleaning', 'Deep Cleaning', 'Post Construction'],
       icon: '🧹'
     }
   ];
-
-  const selectedCategory = categories.find(cat => cat.value === formData.category);
 
   if (!isOpen) return null;
 
@@ -119,7 +108,7 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
               user_id: authData.user.id,
               name: formData.name,
               category: formData.category,
-              subcategory: formData.subcategory || null,
+              subcategory: null, // Remove subcategory
               description: formData.description,
               location: formData.location,
               contact: formData.contact,
@@ -134,7 +123,7 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
         
         // Reset form
         setAccountData({ email: '', password: '', confirmPassword: '' });
-        setFormData({ name: '', category: '', subcategory: '', description: '', location: '', contact: '', experience: '' });
+        setFormData({ name: '', category: '', description: '', location: '', contact: '', experience: '' });
         setCurrentStep(1);
         
         onSuccess();
@@ -180,7 +169,7 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
 
   const handleClose = () => {
     setAccountData({ email: '', password: '', confirmPassword: '' });
-    setFormData({ name: '', category: '', subcategory: '', description: '', location: '', contact: '', experience: '' });
+    setFormData({ name: '', category: '', description: '', location: '', contact: '', experience: '' });
     setCurrentStep(1);
     onClose();
   };
@@ -310,7 +299,7 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
           <select
             required
             value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value, subcategory: '' })}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           >
             <option value="">Select a category</option>
@@ -321,24 +310,6 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
             ))}
           </select>
         </div>
-
-        {selectedCategory && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Specialization
-            </label>
-            <select
-              value={formData.subcategory}
-              onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            >
-              <option value="">Select specialization</option>
-              {selectedCategory.subcategories.map(sub => (
-                <option key={sub} value={sub}>{sub}</option>
-              ))}
-            </select>
-          </div>
-        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -369,9 +340,12 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              placeholder="City, State"
+              placeholder="Enter your exact service location"
             />
           </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Provide your specific service area for better customer matching
+          </p>
         </div>
       </div>
     </div>
@@ -407,7 +381,6 @@ const ProviderRegistrationModal: React.FC<ProviderRegistrationModalProps> = ({ i
           <p><span className="font-medium">Email:</span> {accountData.email}</p>
           <p><span className="font-medium">Business Name:</span> {formData.name}</p>
           <p><span className="font-medium">Category:</span> {formData.category}</p>
-          {formData.subcategory && <p><span className="font-medium">Specialization:</span> {formData.subcategory}</p>}
           <p><span className="font-medium">Location:</span> {formData.location}</p>
           <p><span className="font-medium">Contact:</span> {formData.contact}</p>
         </div>

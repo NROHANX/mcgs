@@ -26,7 +26,6 @@ const ProviderRegistration: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     category: '',
-    subcategory: '',
     description: '',
     location: '',
     contact: '',
@@ -34,7 +33,6 @@ const ProviderRegistration: React.FC = () => {
     certifications: '',
     workingHours: '',
     serviceArea: '',
-    specializations: [] as string[],
     businessLicense: '',
     insuranceDetails: ''
   });
@@ -43,60 +41,49 @@ const ProviderRegistration: React.FC = () => {
     { 
       value: 'RO Technician', 
       label: 'RO Technician', 
-      subcategories: ['Installation', 'Maintenance', 'Repair', 'Filter Replacement', 'Water Quality Testing'],
       icon: '💧'
     },
     { 
       value: 'AC Technician', 
       label: 'AC Technician', 
-      subcategories: ['Installation & Repair', 'Maintenance', 'Gas Refilling', 'Emergency Service', 'Deep Cleaning'],
       icon: '❄️'
     },
     { 
       value: 'Electrician', 
       label: 'Electrician', 
-      subcategories: ['Residential', 'Commercial', 'Industrial', 'Emergency Services', 'Wiring & Installation'],
       icon: '⚡'
     },
     { 
       value: 'Plumber', 
       label: 'Plumber', 
-      subcategories: ['Residential', 'Commercial', 'Emergency Services', 'Pipe Installation', 'Bathroom Fitting'],
       icon: '🔧'
     },
     { 
       value: 'Mechanic', 
       label: 'Mechanic', 
-      subcategories: ['Auto Repair', 'Bike Repair', 'Heavy Vehicles', 'Diagnostics', 'Engine Service'],
       icon: '🔩'
     },
     { 
       value: 'Carpenter', 
       label: 'Carpenter', 
-      subcategories: ['Furniture Making', 'Home Renovation', 'Custom Work', 'Repair', 'Kitchen Cabinets'],
       icon: '🪚'
     },
     { 
       value: 'Painter', 
       label: 'Painter', 
-      subcategories: ['Interior', 'Exterior', 'Commercial', 'Decorative', 'Texture Work'],
       icon: '🎨'
     },
     { 
       value: 'Cleaner', 
       label: 'Cleaner', 
-      subcategories: ['Home Cleaning', 'Office Cleaning', 'Deep Cleaning', 'Post Construction', 'Carpet Cleaning'],
       icon: '🧹'
     },
     { 
       value: 'Gardener', 
       label: 'Gardener', 
-      subcategories: ['Landscaping', 'Maintenance', 'Plant Care', 'Garden Design', 'Pest Control'],
       icon: '🌱'
     }
   ];
-
-  const selectedCategory = categories.find(cat => cat.value === formData.category);
 
   // Check if user is already logged in and has a provider profile
   useEffect(() => {
@@ -115,7 +102,6 @@ const ProviderRegistration: React.FC = () => {
             setFormData({
               name: providerData.name || '',
               category: providerData.category || '',
-              subcategory: providerData.subcategory || '',
               description: providerData.description || '',
               location: providerData.location || '',
               contact: providerData.contact || '',
@@ -123,7 +109,6 @@ const ProviderRegistration: React.FC = () => {
               certifications: '',
               workingHours: '',
               serviceArea: '',
-              specializations: [],
               businessLicense: '',
               insuranceDetails: ''
             });
@@ -178,7 +163,7 @@ const ProviderRegistration: React.FC = () => {
           user_id: userId,
           name: formData.name,
           category: formData.category,
-          subcategory: formData.subcategory || null,
+          subcategory: null, // Remove subcategory
           description: formData.description,
           location: formData.location,
           contact: formData.contact,
@@ -379,7 +364,7 @@ const ProviderRegistration: React.FC = () => {
           <select
             required
             value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value, subcategory: '' })}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select a category</option>
@@ -390,24 +375,6 @@ const ProviderRegistration: React.FC = () => {
             ))}
           </select>
         </div>
-
-        {selectedCategory && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Specialization
-            </label>
-            <select
-              value={formData.subcategory}
-              onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select specialization</option>
-              {selectedCategory.subcategories.map(sub => (
-                <option key={sub} value={sub}>{sub}</option>
-              ))}
-            </select>
-          </div>
-        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -438,9 +405,12 @@ const ProviderRegistration: React.FC = () => {
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="City, State (e.g., Nagpur, Maharashtra)"
+              placeholder="Enter your exact service location (e.g., Sitabuldi, Nagpur, Maharashtra)"
             />
           </div>
+          <p className="text-sm text-gray-500 mt-2">
+            Please provide your specific service area or neighborhood for better customer matching
+          </p>
         </div>
       </div>
     </div>
@@ -558,7 +528,6 @@ const ProviderRegistration: React.FC = () => {
           {!isEditMode && <p><span className="font-medium">Email:</span> {accountData.email}</p>}
           <p><span className="font-medium">Business Name:</span> {formData.name}</p>
           <p><span className="font-medium">Category:</span> {formData.category}</p>
-          {formData.subcategory && <p><span className="font-medium">Specialization:</span> {formData.subcategory}</p>}
           <p><span className="font-medium">Location:</span> {formData.location}</p>
           <p><span className="font-medium">Contact:</span> {formData.contact}</p>
           <p><span className="font-medium">Experience:</span> {formData.experience}</p>
