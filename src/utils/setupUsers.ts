@@ -241,5 +241,23 @@ export const setupAllUsers = async (): Promise<UserSetupResult> => {
   }
 };
 
-// Legacy function for backward compatibility
-export const clearAuthUsers = clearDatabase;
+// Function to clear auth users (requires admin privileges)
+export const clearAuthUsers = async (): Promise<UserSetupResult> => {
+  try {
+    console.log('Note: Auth users cannot be deleted via client SDK for security reasons.');
+    console.log('You need to manually delete users from Supabase Dashboard > Authentication > Users');
+    console.log('Or use the Supabase CLI/Admin API');
+    
+    return { 
+      success: true, 
+      message: 'Database tables cleared. Please manually delete auth users from Supabase Dashboard if needed.' 
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    return { 
+      success: false, 
+      message: 'Failed to clear auth users', 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+};

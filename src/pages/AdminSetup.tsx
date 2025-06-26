@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, CheckCircle, AlertTriangle, User, Mail, Lock, Trash2, Users, Wrench, Database, RefreshCw } from 'lucide-react';
+import { Shield, CheckCircle, AlertTriangle, User, Mail, Lock, Trash2, Users, Wrench, Database, RefreshCw, ExternalLink, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { setupAllUsers, createAdminUser, createProviderUser, createCustomerUser, clearDatabase } from '../utils/setupUsers';
 import { supabase } from '../lib/supabase';
@@ -34,7 +34,8 @@ const AdminSetup: React.FC = () => {
       const result = await clearDatabase();
       
       if (result.success) {
-        toast.success('Database cleared successfully!');
+        toast.success('Database tables cleared successfully!');
+        toast.info('Note: You may need to manually delete auth users from Supabase Dashboard if they exist');
         setSetupComplete(false);
       } else {
         toast.error(result.error || 'Failed to clear database');
@@ -57,6 +58,11 @@ const AdminSetup: React.FC = () => {
         toast.success('You can now test login with any of the accounts');
       } else {
         toast.error(result.error || 'Failed to setup users');
+        
+        // If users already exist, show helpful message
+        if (result.error?.includes('already registered') || result.error?.includes('already exists')) {
+          toast.info('Users may already exist. Try clearing auth users from Supabase Dashboard first.');
+        }
       }
     } catch (error) {
       toast.error('Error setting up users');
@@ -132,6 +138,11 @@ const AdminSetup: React.FC = () => {
         toast.success(`${userType} user created successfully!`);
       } else {
         toast.error(result.error || `Failed to create ${userType} user`);
+        
+        // If user already exists, show helpful message
+        if (result.error?.includes('already registered') || result.error?.includes('already exists')) {
+          toast.info('User may already exist. Check Supabase Dashboard > Authentication > Users');
+        }
       }
     } catch (error) {
       toast.error(`Error creating ${userType} user`);
@@ -140,9 +151,13 @@ const AdminSetup: React.FC = () => {
     }
   };
 
+  const openSupabaseDashboard = () => {
+    window.open('https://supabase.com/dashboard', '_blank');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
-      <div className="max-w-5xl w-full">
+      <div className="max-w-6xl w-full">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="text-center mb-8">
             <div className="mx-auto h-16 w-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
@@ -150,6 +165,32 @@ const AdminSetup: React.FC = () => {
             </div>
             <h2 className="text-3xl font-bold text-gray-900">MCGS Database Setup</h2>
             <p className="text-gray-600 mt-2">Clear database and create test users with your specified credentials</p>
+          </div>
+
+          {/* Important Notice */}
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+            <div className="flex items-start">
+              <AlertCircle className="h-5 w-5 text-red-600 mr-2 mt-0.5" />
+              <div className="text-red-800 text-sm">
+                <p className="font-medium mb-2">🚨 Important: Auth Users Cannot Be Deleted via Client</p>
+                <p className="mb-2">If you see "User already registered" errors, you need to manually delete the auth users first:</p>
+                <ol className="list-decimal list-inside space-y-1 mb-3">
+                  <li>Go to your Supabase Dashboard</li>
+                  <li>Navigate to Authentication → Users</li>
+                  <li>Delete the existing users: worldecare@gmail.com, nexterplus.com@gmail.com, customer@mcgs.com</li>
+                  <li>Then come back and run "Setup All Users"</li>
+                </ol>
+                <Button
+                  onClick={openSupabaseDashboard}
+                  size="sm"
+                  variant="outline"
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  icon={<ExternalLink className="h-4 w-4" />}
+                >
+                  Open Supabase Dashboard
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Main Action Buttons */}
@@ -161,7 +202,7 @@ const AdminSetup: React.FC = () => {
               className="py-4 border-red-300 text-red-600 hover:bg-red-50"
               icon={<Trash2 className="h-5 w-5" />}
             >
-              {loading ? 'Clearing...' : 'Clear Database'}
+              {loading ? 'Clearing...' : 'Clear Database Tables'}
             </Button>
 
             <Button
@@ -310,13 +351,13 @@ const AdminSetup: React.FC = () => {
             <div className="flex items-center">
               <AlertTriangle className="h-5 w-5 text-orange-600 mr-2" />
               <div className="text-orange-800 text-sm">
-                <p className="font-medium mb-1">Important Notes:</p>
+                <p className="font-medium mb-1">Setup Instructions:</p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li><strong>Clear Database</strong> - Removes all existing users and data from your Supabase tables</li>
+                  <li><strong>Clear Database Tables</strong> - Removes all data from your Supabase tables (but not auth users)</li>
                   <li><strong>Setup All Users</strong> - Creates all three test accounts with approved status</li>
                   <li><strong>Individual Creation</strong> - Create specific user types one at a time</li>
                   <li><strong>Test Login</strong> - Verify each account works and redirects correctly</li>
-                  <li>All users are created with "approved" status for immediate access</li>
+                  <li>If you get "User already registered" errors, delete auth users from Supabase Dashboard first</li>
                 </ul>
               </div>
             </div>
