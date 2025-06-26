@@ -1,17 +1,14 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { MapPin, Loader, Navigation, Star, Clock, X } from 'lucide-react';
 
 interface GoogleMapsAutocompleteProps {
   value: string;
-  onChange: (value: string, placeDetails?: google.maps.places.PlaceResult) => void;
+  onChange: (value: string, placeDetails?: any) => void;
   placeholder?: string;
   className?: string;
   required?: boolean;
 }
-
-const libraries: ("places")[] = ["places"];
 
 const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
   value,
@@ -20,17 +17,11 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
   className = "",
   required = false
 }) => {
-  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [inputValue, setInputValue] = useState(value);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-    libraries,
-  });
-
-  // Popular locations for demo
+  // Popular locations for demo (fallback when Google Maps is not available)
   const popularLocations = [
     { name: 'Sitabuldi, Nagpur', type: 'Commercial Area', distance: '2.5 km' },
     { name: 'Dharampeth, Nagpur', type: 'Residential Area', distance: '3.2 km' },
@@ -39,24 +30,6 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
     { name: 'Civil Lines, Nagpur', type: 'Government Area', distance: '2.9 km' },
     { name: 'Wardha Road, Nagpur', type: 'Highway Area', distance: '5.2 km' }
   ];
-
-  const onLoad = useCallback((autocompleteInstance: google.maps.places.Autocomplete) => {
-    setAutocomplete(autocompleteInstance);
-  }, []);
-
-  const onPlaceChanged = useCallback(() => {
-    if (autocomplete) {
-      const place = autocomplete.getPlace();
-      
-      if (place.formatted_address) {
-        const newValue = place.formatted_address;
-        setInputValue(newValue);
-        setShowSuggestions(false);
-        setIsFocused(false);
-        onChange(newValue, place);
-      }
-    }
-  }, [autocomplete, onChange]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
@@ -119,7 +92,7 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Select Your Location</h3>
-                  <p className="text-xs text-gray-500">Choose from popular locations or search</p>
+                  <p className="text-xs text-gray-500">Choose from popular locations</p>
                 </div>
               </div>
               <button 
@@ -164,7 +137,7 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
             {/* Footer */}
             <div className="mt-4 pt-4 border-t border-gray-100 text-center">
               <div className="text-xs text-gray-500">
-                Powered by Google Maps • Precise location matching
+                Location selection • Quick service matching
               </div>
             </div>
           </div>
@@ -174,75 +147,25 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
     );
   };
 
-  if (loadError) {
-    console.error('Google Maps API failed to load:', loadError);
-    // Fallback to regular input if Google Maps fails to load
-    return (
-      <div className="relative">
-        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 z-10" />
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          required={required}
-          className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
-          placeholder={placeholder}
-        />
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-          <span className="text-xs text-red-500">Maps unavailable</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isLoaded) {
-    return (
-      <div className="relative">
-        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 z-10" />
-        <input
-          type="text"
-          disabled
-          className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 ${className}`}
-          placeholder="Loading maps..."
-        />
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-          <Loader className="h-4 w-4 text-gray-400 animate-spin" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="relative">
       <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 z-10" />
-      <Autocomplete
-        onLoad={onLoad}
-        onPlaceChanged={onPlaceChanged}
-        options={{
-          types: ['geocode'],
-          componentRestrictions: { country: 'IN' },
-          fields: ['formatted_address', 'geometry', 'place_id', 'address_components']
-        }}
-      >
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          required={required}
-          className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ${className}`}
-          placeholder={placeholder}
-        />
-      </Autocomplete>
+      <input
+        type="text"
+        value={inputValue}
+        onChange={handleInputChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        required={required}
+        className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ${className}`}
+        placeholder={placeholder}
+      />
       
-      {/* Enhanced Status Indicator */}
+      {/* Status Indicator */}
       <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center">
-        <div className="flex items-center bg-green-50 text-green-600 px-2 py-1 rounded-full text-xs font-medium">
-          <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
-          Maps enabled
+        <div className="flex items-center bg-blue-50 text-blue-600 px-2 py-1 rounded-full text-xs font-medium">
+          <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+          Location
         </div>
       </div>
       
