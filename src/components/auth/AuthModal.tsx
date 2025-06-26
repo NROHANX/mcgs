@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Lock, Eye, EyeOff, UserPlus, AlertTriangle } from 'lucide-react';
+import { X, User, Mail, Lock, Eye, EyeOff, UserPlus, AlertTriangle, Wrench, Shield } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Button from '../ui/Button';
 import toast from 'react-hot-toast';
@@ -12,7 +12,7 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 'signin' }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>(defaultMode);
-  const [userType, setUserType] = useState<'customer' | 'provider'>('customer');
+  const [userType, setUserType] = useState<'customer' | 'provider' | 'admin'>('customer');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -77,7 +77,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
 
         if (authError) throw authError;
 
-        // Check if user is approved
+        // Check if user exists and get their profile
         const { data: userProfile, error: profileError } = await supabase
           .from('users')
           .select('*')
@@ -87,6 +87,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
         if (profileError || !userProfile) {
           await supabase.auth.signOut();
           throw new Error('User profile not found. Please contact support.');
+        }
+
+        // Check if user type matches selected role
+        if (userProfile.user_type !== userType) {
+          await supabase.auth.signOut();
+          throw new Error(`This account is not registered as a ${userType}. Please select the correct role.`);
         }
 
         if (userProfile.status !== 'approved') {
@@ -118,11 +124,38 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
       confirmPassword: ''
     });
     setShowPassword(false);
+    setUserType('customer');
   };
 
   const switchMode = () => {
     setMode(mode === 'signin' ? 'signup' : 'signin');
     resetForm();
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'customer':
+        return <User className="h-5 w-5" />;
+      case 'provider':
+        return <Wrench className="h-5 w-5" />;
+      case 'admin':
+        return <Shield className="h-5 w-5" />;
+      default:
+        return <User className="h-5 w-5" />;
+    }
+  };
+
+  const getRoleDescription = (role: string) => {
+    switch (role) {
+      case 'customer':
+        return 'Book services from providers';
+      case 'provider':
+        return 'Offer your services to customers';
+      case 'admin':
+        return 'Manage platform and users';
+      default:
+        return '';
+    }
   };
 
   return (
@@ -141,40 +174,109 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Role Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Select your role:
+            </label>
+            <div className="space-y-3">
+              {/* Customer Option */}
+              <button
+                type="button"
+                onClick={() => setUserType('customer')}
+                className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
+                  userType === 'customer'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center">
+                  <div className={`p-2 rounded-full mr-3 ${
+                    userType === 'customer' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    <User className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className={`font-medium ${
+                      userType === 'customer' ? 'text-blue-900' : 'text-gray-900'
+                    }`}>
+                      Customer
+                    </div>
+                    <div className={`text-sm ${
+                      userType === 'customer' ? 'text-blue-700' : 'text-gray-500'
+                    }`}>
+                      Book services from providers
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              {/* Service Provider Option */}
+              <button
+                type="button"
+                onClick={() => setUserType('provider')}
+                className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
+                  userType === 'provider'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center">
+                  <div className={`p-2 rounded-full mr-3 ${
+                    userType === 'provider' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    <Wrench className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className={`font-medium ${
+                      userType === 'provider' ? 'text-blue-900' : 'text-gray-900'
+                    }`}>
+                      Service Provider
+                    </div>
+                    <div className={`text-sm ${
+                      userType === 'provider' ? 'text-blue-700' : 'text-gray-500'
+                    }`}>
+                      Offer your services to customers
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              {/* Admin Option */}
+              <button
+                type="button"
+                onClick={() => setUserType('admin')}
+                className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
+                  userType === 'admin'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center">
+                  <div className={`p-2 rounded-full mr-3 ${
+                    userType === 'admin' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    <Shield className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className={`font-medium ${
+                      userType === 'admin' ? 'text-blue-900' : 'text-gray-900'
+                    }`}>
+                      Admin
+                    </div>
+                    <div className={`text-sm ${
+                      userType === 'admin' ? 'text-blue-700' : 'text-gray-500'
+                    }`}>
+                      Manage platform and users
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+
           {mode === 'signup' && (
             <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Account Type
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setUserType('customer')}
-                    className={`p-3 border-2 rounded-lg text-center transition-all ${
-                      userType === 'customer'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <User className="h-5 w-5 mx-auto mb-1" />
-                    <div className="text-sm font-medium">Customer</div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUserType('provider')}
-                    className={`p-3 border-2 rounded-lg text-center transition-all ${
-                      userType === 'provider'
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <UserPlus className="h-5 w-5 mx-auto mb-1" />
-                    <div className="text-sm font-medium">Provider</div>
-                  </button>
-                </div>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Full Name
@@ -203,7 +305,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
+              Email
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
