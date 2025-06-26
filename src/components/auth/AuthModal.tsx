@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Lock, Eye, EyeOff, UserPlus, AlertTriangle, Wrench, Shield } from 'lucide-react';
+import { X, User, Mail, Lock, Eye, EyeOff, UserPlus, AlertTriangle, Wrench, Shield, Info } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Button from '../ui/Button';
 import toast from 'react-hot-toast';
@@ -38,13 +38,64 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
           throw new Error('Password must be at least 6 characters long');
         }
 
+        // First check if user already exists in our users table
+        const { data: existingUser, error: checkError } = await supabase
+          .from('users')
+          .select('email, user_type, status')
+          .eq('email', formData.email)
+          .single();
+
+        if (existingUser) {
+          if (existingUser.user_type !== userType) {
+            throw new Error(`An account with this email already exists as a ${existingUser.user_type}. Please select the correct role or use a different email.`);
+          }
+          
+          if (existingUser.status === 'pending') {
+            throw new Error('An account with this email is already registered and pending approval. Please wait for admin approval or contact support.');
+          } else if (existingUser.status === 'approved') {
+            throw new Error('An account with this email already exists and is approved. Please sign in instead.');
+          } else if (existingUser.status === 'rejected') {
+            throw new Error('An account with this email was previously rejected. Please contact support.');
+          }
+        }
+
         // Create auth user
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
         });
 
-        if (authError) throw authError;
+        if (authError) {
+          // Handle specific auth errors
+          if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
+            // Try to sign in the user to check if they exist in our system
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+              email: formData.email,
+              password: formData.password,
+            });
+
+            if (signInData.user) {
+              // User exists in auth but maybe not in our users table
+              const { data: userProfile } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', signInData.user.id)
+                .single();
+
+              await supabase.auth.signOut(); // Sign them out
+
+              if (userProfile) {
+                throw new Error(`Account already exists. Please sign in instead.`);
+              } else {
+                // Auth user exists but no profile - this is an orphaned auth user
+                throw new Error('Account exists but is incomplete. Please contact support to resolve this issue.');
+              }
+            } else {
+              throw new Error('Email already registered with a different password. Please sign in or reset your password.');
+            }
+          }
+          throw authError;
+        }
 
         if (authData.user) {
           // Create user profile (pending approval)
@@ -60,7 +111,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
               }
             ]);
 
-          if (profileError) throw profileError;
+          if (profileError) {
+            // If profile creation fails, we should clean up the auth user
+            // But we can't delete auth users from client side, so we'll just show an error
+            console.error('Profile creation failed:', profileError);
+            throw new Error('Registration failed. Please contact support.');
+          }
 
           toast.success('Registration successful! Your account is pending admin approval.');
           toast.info('You will receive an email once your account is approved.');
@@ -92,7 +148,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
         // Check if user type matches selected role
         if (userProfile.user_type !== userType) {
           await supabase.auth.signOut();
-          throw new Error(`This account is not registered as a ${userType}. Please select the correct role.`);
+          throw new Error(`This account is registered as a ${userProfile.user_type}. Please select the correct role.`);
         }
 
         if (userProfile.status !== 'approved') {
@@ -275,6 +331,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
             </div>
           </div>
 
+          {/* Test Accounts Info */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-start">
+              <Info className="h-4 w-4 text-blue-600 mr-2 mt-0.5" />
+              <div className="text-blue-800 text-sm">
+                <p className="font-medium mb-1">Test Accounts Available:</p>
+                <div className="space-y-1 text-xs">
+                  <p><strong>Admin:</strong> worldecare@gmail.com / Rohan@123</p>
+                  <p><strong>Provider:</strong> nexterplus.com@gmail.com / Rohan@123</p>
+                  <p><strong>Customer:</strong> customer@mcgs.com / Rohan@123</p>
+                </div>
+                <p className="mt-2 text-xs">Or create a new account with any email.</p>
+              </div>
+            </div>
+          </div>
+
           {mode === 'signup' && (
             <>
               <div>
@@ -380,6 +452,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
                 ? "Don't have an account? Sign Up"
                 : 'Already have an account? Sign In'}
             </button>
+          </div>
+          
+          {/* Quick Setup Link */}
+          <div className="text-center mt-3">
+            <a 
+              href="/admin-setup" 
+              className="text-gray-500 hover:text-gray-700 text-xs"
+            >
+              Admin Setup & Test Accounts →
+            </a>
           </div>
         </div>
       </div>
