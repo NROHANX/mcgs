@@ -168,8 +168,6 @@ export const clearDatabase = async (): Promise<UserSetupResult> => {
       'provider_service_areas', 
       'provider_categories',
       'service_bookings',
-      'earnings',
-      'payments',
       'reviews',
       'services',
       'service_providers',
@@ -177,7 +175,6 @@ export const clearDatabase = async (): Promise<UserSetupResult> => {
       'user_roles',
       'admin_management',
       'contacts',
-      'bookings',
       'users'
     ];
 
