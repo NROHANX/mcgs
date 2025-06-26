@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, User, LogIn, LogOut, Settings } from 'lucide-react';
+import { Menu, X, User, LogIn, LogOut, Settings, Shield } from 'lucide-react';
 import Button from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import AuthModal from '../auth/AuthModal';
@@ -47,6 +47,32 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
     setIsMenuOpen(false);
   };
 
+  const getProfileButtonText = () => {
+    if (!userProfile) return 'Profile';
+    
+    switch (userProfile.user_type) {
+      case 'admin':
+        return 'Admin Panel';
+      case 'provider':
+        return 'Dashboard';
+      default:
+        return 'Profile';
+    }
+  };
+
+  const getProfileIcon = () => {
+    if (!userProfile) return <User className="h-4 w-4" />;
+    
+    switch (userProfile.user_type) {
+      case 'admin':
+        return <Shield className="h-4 w-4" />;
+      case 'provider':
+        return <Settings className="h-4 w-4" />;
+      default:
+        return <User className="h-4 w-4" />;
+    }
+  };
+
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
@@ -86,11 +112,10 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
               <>
                 <Button 
                   variant="outline" 
-                  icon={<User className="h-4 w-4" />}
+                  icon={getProfileIcon()}
                   onClick={handleProfileClick}
                 >
-                  {userProfile.user_type === 'admin' ? 'Admin Panel' :
-                   userProfile.user_type === 'provider' ? 'Dashboard' : 'Profile'}
+                  {getProfileButtonText()}
                 </Button>
                 <Button 
                   variant="outline" 
@@ -157,11 +182,10 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
                 <Button 
                   variant="outline" 
                   fullWidth 
-                  icon={<User className="h-4 w-4" />}
+                  icon={getProfileIcon()}
                   onClick={handleProfileClick}
                 >
-                  {userProfile.user_type === 'admin' ? 'Admin Panel' :
-                   userProfile.user_type === 'provider' ? 'Dashboard' : 'Profile'}
+                  {getProfileButtonText()}
                 </Button>
                 <Button 
                   variant="outline" 

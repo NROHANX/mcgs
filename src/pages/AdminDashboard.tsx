@@ -22,7 +22,10 @@ import {
   Star,
   Eye,
   UserPlus,
-  Settings
+  Settings,
+  Bell,
+  Activity,
+  X
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
@@ -39,7 +42,7 @@ interface BookingWithDetails extends ServiceBooking {
 const AdminDashboard: React.FC = () => {
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'bookings' | 'providers' | 'contacts'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'bookings' | 'providers' | 'contacts'>('users');
   const [users, setUsers] = useState<UserType[]>([]);
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [providers, setProviders] = useState<ServiceProvider[]>([]);
@@ -47,6 +50,7 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [userTypeFilter, setUserTypeFilter] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [availableProviders, setAvailableProviders] = useState<ServiceProvider[]>([]);
@@ -54,6 +58,7 @@ const AdminDashboard: React.FC = () => {
     totalUsers: 0,
     pendingUsers: 0,
     approvedUsers: 0,
+    rejectedUsers: 0,
     totalBookings: 0,
     pendingBookings: 0,
     assignedBookings: 0,
@@ -127,6 +132,7 @@ const AdminDashboard: React.FC = () => {
       // Calculate stats
       const pendingUsers = (usersData || []).filter(u => u.status === 'pending').length;
       const approvedUsers = (usersData || []).filter(u => u.status === 'approved').length;
+      const rejectedUsers = (usersData || []).filter(u => u.status === 'rejected').length;
       const pendingBookings = (bookingsData || []).filter(b => b.status === 'pending').length;
       const assignedBookings = (bookingsData || []).filter(b => b.status === 'assigned').length;
       const completedBookings = (bookingsData || []).filter(b => b.status === 'completed').length;
@@ -136,6 +142,7 @@ const AdminDashboard: React.FC = () => {
         totalUsers: (usersData || []).length,
         pendingUsers,
         approvedUsers,
+        rejectedUsers,
         totalBookings: (bookingsData || []).length,
         pendingBookings,
         assignedBookings,
@@ -222,6 +229,14 @@ const AdminDashboard: React.FC = () => {
     setShowAssignModal(true);
   };
 
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+    const matchesType = userTypeFilter === 'all' || user.user_type === userTypeFilter;
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
   const filteredBookings = bookings.filter(booking => {
     const matchesSearch = booking.service_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          booking.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -234,6 +249,10 @@ const AdminDashboard: React.FC = () => {
     switch (status) {
       case 'pending':
         return 'bg-orange-100 text-orange-800';
+      case 'approved':
+        return 'bg-green-100 text-green-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
       case 'assigned':
         return 'bg-blue-100 text-blue-800';
       case 'in_progress':
@@ -288,8 +307,41 @@ const AdminDashboard: React.FC = () => {
             <p className="text-gray-600 mt-1">Manage users, bookings, technicians, and platform operations</p>
           </div>
 
+          {/* Critical Alerts */}
+          {stats.pendingUsers > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center">
+                <Bell className="h-5 w-5 text-red-600 mr-2 animate-pulse" />
+                <div>
+                  <p className="text-red-800 font-medium">
+                    🚨 {stats.pendingUsers} user{stats.pendingUsers > 1 ? 's' : ''} waiting for approval!
+                  </p>
+                  <p className="text-red-700 text-sm">
+                    New registrations need your immediate attention. Click "User Management" to approve or reject accounts.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Enhanced Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Pending Approvals</p>
+                  <p className="text-3xl font-bold text-red-600">{stats.pendingUsers}</p>
+                  <p className="text-xs text-red-600 mt-1">Need Immediate Action</p>
+                </div>
+                <div className="relative">
+                  <UserCheck className="h-8 w-8 text-red-500" />
+                  {stats.pendingUsers > 0 && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
               <div className="flex items-center justify-between">
                 <div>
@@ -301,61 +353,49 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Assigned Bookings</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.assignedBookings}</p>
-                  <p className="text-xs text-blue-600 mt-1">In Progress</p>
-                </div>
-                <UserCheck className="h-8 w-8 text-blue-500" />
-              </div>
-            </div>
-
             <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Available Technicians</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.availableProviders}</p>
-                  <p className="text-xs text-green-600 mt-1">Ready to Work</p>
+                  <p className="text-sm font-medium text-gray-500">Approved Users</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.approvedUsers}</p>
+                  <p className="text-xs text-green-600 mt-1">Active Users</p>
                 </div>
-                <Wrench className="h-8 w-8 text-green-500" />
+                <Users className="h-8 w-8 text-green-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
+            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
-                  <p className="text-xs text-purple-600 mt-1">{stats.pendingUsers} Pending</p>
+                  <p className="text-sm font-medium text-gray-500">Platform Activity</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalBookings}</p>
+                  <p className="text-xs text-blue-600 mt-1">Total Bookings</p>
                 </div>
-                <Users className="h-8 w-8 text-purple-500" />
+                <Activity className="h-8 w-8 text-blue-500" />
               </div>
             </div>
           </div>
-
-          {/* Priority Alert for Pending Bookings */}
-          {stats.pendingBookings > 0 && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
-              <div className="flex items-center">
-                <AlertTriangle className="h-5 w-5 text-orange-600 mr-2" />
-                <div>
-                  <p className="text-orange-800 font-medium">
-                    {stats.pendingBookings} booking{stats.pendingBookings > 1 ? 's' : ''} waiting for technician assignment
-                  </p>
-                  <p className="text-orange-700 text-sm">
-                    Click on "Assign Technician" to match customers with available technicians.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Navigation Tabs */}
           <div className="bg-white rounded-lg shadow-md mb-6">
             <div className="border-b border-gray-200">
               <nav className="flex">
+                <button
+                  className={`px-6 py-3 font-medium text-sm focus:outline-none ${
+                    activeTab === 'users'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setActiveTab('users')}
+                >
+                  <Users className="h-4 w-4 inline mr-2" />
+                  User Management
+                  {stats.pendingUsers > 0 && (
+                    <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 animate-pulse">
+                      {stats.pendingUsers}
+                    </span>
+                  )}
+                </button>
                 <button
                   className={`px-6 py-3 font-medium text-sm focus:outline-none ${
                     activeTab === 'overview'
@@ -396,22 +436,6 @@ const AdminDashboard: React.FC = () => {
                 </button>
                 <button
                   className={`px-6 py-3 font-medium text-sm focus:outline-none ${
-                    activeTab === 'users'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('users')}
-                >
-                  <Users className="h-4 w-4 inline mr-2" />
-                  Users
-                  {stats.pendingUsers > 0 && (
-                    <span className="ml-2 bg-orange-500 text-white text-xs rounded-full px-2 py-1">
-                      {stats.pendingUsers}
-                    </span>
-                  )}
-                </button>
-                <button
-                  className={`px-6 py-3 font-medium text-sm focus:outline-none ${
                     activeTab === 'contacts'
                       ? 'text-blue-600 border-b-2 border-blue-600'
                       : 'text-gray-500 hover:text-gray-700'
@@ -425,35 +449,200 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="p-6">
+              {activeTab === 'users' && (
+                <div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold mb-4 sm:mb-0">User Management & Approvals</h2>
+                    <div className="text-sm text-gray-600">
+                      Total: {stats.totalUsers} | Pending: {stats.pendingUsers} | Approved: {stats.approvedUsers} | Rejected: {stats.rejectedUsers}
+                    </div>
+                  </div>
+
+                  {/* Search and Filter */}
+                  <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      <input
+                        type="text"
+                        placeholder="Search users..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending Approval</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                    </div>
+                    <div className="relative">
+                      <select
+                        value={userTypeFilter}
+                        onChange={(e) => setUserTypeFilter(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="all">All Types</option>
+                        <option value="customer">Customers</option>
+                        <option value="provider">Providers</option>
+                        <option value="admin">Admins</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            User
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Type
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Created
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredUsers.map(user => (
+                          <tr key={user.id} className={`hover:bg-gray-50 ${user.status === 'pending' ? 'bg-orange-50' : ''}`}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                                  user.user_type === 'admin' ? 'bg-red-100' :
+                                  user.user_type === 'provider' ? 'bg-blue-100' : 'bg-green-100'
+                                }`}>
+                                  {user.user_type === 'admin' ? <Shield className="h-5 w-5 text-red-600" /> :
+                                   user.user_type === 'provider' ? <Wrench className="h-5 w-5 text-blue-600" /> :
+                                   <User className="h-5 w-5 text-green-600" />}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
+                                  <div className="text-sm text-gray-500">{user.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                user.user_type === 'provider' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : user.user_type === 'admin'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {user.user_type}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                                {user.status}
+                                {user.status === 'pending' && (
+                                  <span className="ml-1 animate-pulse">⏳</span>
+                                )}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(user.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              {user.status === 'pending' && (
+                                <div className="flex space-x-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUserAction(user.id, 'approve')}
+                                    icon={<CheckCircle className="h-4 w-4" />}
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleUserAction(user.id, 'reject')}
+                                    icon={<XCircle className="h-4 w-4" />}
+                                    className="border-red-300 text-red-600 hover:bg-red-50"
+                                  >
+                                    Reject
+                                  </Button>
+                                </div>
+                              )}
+                              {user.status === 'approved' && (
+                                <span className="text-green-600 text-sm">✓ Active</span>
+                              )}
+                              {user.status === 'rejected' && (
+                                <span className="text-red-600 text-sm">✗ Rejected</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {filteredUsers.length === 0 && (
+                    <div className="text-center py-12">
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
+                      <p className="text-gray-600">
+                        {users.length === 0 
+                          ? 'No users have registered yet.' 
+                          : 'No users match your current filters.'
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activeTab === 'overview' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-gray-50 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold mb-4">Recent Bookings Requiring Action</h3>
+                      <h3 className="text-lg font-semibold mb-4">Recent User Registrations</h3>
                       <div className="space-y-3">
-                        {bookings.filter(b => b.status === 'pending').slice(0, 5).map(booking => (
-                          <div key={booking.id} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-b-0">
+                        {users.filter(u => u.status === 'pending').slice(0, 5).map(user => (
+                          <div key={user.id} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-b-0">
                             <div>
-                              <p className="font-medium text-gray-900">{booking.service_name}</p>
-                              <p className="text-sm text-gray-500">{booking.customer_name} • {booking.customer_phone}</p>
-                              <div className="flex items-center space-x-2 mt-1">
-                                <span className={`text-xs px-2 py-1 rounded-full ${getUrgencyColor(booking.urgency)}`}>
-                                  {booking.urgency}
-                                </span>
-                                <p className="text-xs text-gray-400">{new Date(booking.created_at).toLocaleDateString()}</p>
-                              </div>
+                              <p className="font-medium text-gray-900">{user.full_name}</p>
+                              <p className="text-sm text-gray-500">{user.email} • {user.user_type}</p>
+                              <p className="text-xs text-gray-400">{new Date(user.created_at).toLocaleDateString()}</p>
                             </div>
-                            <Button
-                              size="sm"
-                              onClick={() => openAssignModal(booking)}
-                              className="bg-orange-500 hover:bg-orange-600"
-                            >
-                              Assign
-                            </Button>
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleUserAction(user.id, 'approve')}
+                                className="bg-green-600 hover:bg-green-700 text-xs"
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUserAction(user.id, 'reject')}
+                                className="border-red-300 text-red-600 hover:bg-red-50 text-xs"
+                              >
+                                Reject
+                              </Button>
+                            </div>
                           </div>
                         ))}
-                        {bookings.filter(b => b.status === 'pending').length === 0 && (
-                          <p className="text-gray-500 text-center py-4">No pending bookings</p>
+                        {users.filter(u => u.status === 'pending').length === 0 && (
+                          <p className="text-gray-500 text-center py-4">No pending approvals</p>
                         )}
                       </div>
                     </div>
@@ -461,6 +650,18 @@ const AdminDashboard: React.FC = () => {
                     <div className="bg-gray-50 rounded-lg p-6">
                       <h3 className="text-lg font-semibold mb-4">Platform Statistics</h3>
                       <div className="space-y-4">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Total Users</span>
+                          <span className="font-medium">{stats.totalUsers}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Pending Approvals</span>
+                          <span className="font-medium text-orange-600">{stats.pendingUsers}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Active Providers</span>
+                          <span className="font-medium">{stats.availableProviders}</span>
+                        </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Total Bookings</span>
                           <span className="font-medium">{stats.totalBookings}</span>
@@ -470,16 +671,13 @@ const AdminDashboard: React.FC = () => {
                           <span className="font-medium text-green-600">{stats.completedBookings}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Active Technicians</span>
-                          <span className="font-medium">{stats.availableProviders}</span>
-                        </div>
-                        <div className="flex justify-between">
                           <span className="text-gray-600">Success Rate</span>
                           <span className="font-medium">
                             {stats.totalBookings > 0 
                               ? Math.round((stats.completedBookings / stats.totalBookings) * 100)
                               : 0}%
                           </span>
+                
                         </div>
                       </div>
                     </div>
@@ -720,92 +918,6 @@ const AdminDashboard: React.FC = () => {
                               >
                                 Manage
                               </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'users' && (
-                <div>
-                  <h2 className="text-xl font-semibold mb-6">User Management</h2>
-                  
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            User
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Type
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Created
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {users.map(user => (
-                          <tr key={user.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
-                                <div className="text-sm text-gray-500">{user.email}</div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                user.user_type === 'provider' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : user.user_type === 'admin'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {user.user_type}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                user.status === 'pending' ? 'bg-orange-100 text-orange-800' :
-                                user.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                'bg-red-100 text-red-800'
-                              }`}>
-                                {user.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {new Date(user.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              {user.status === 'pending' && (
-                                <div className="flex space-x-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleUserAction(user.id, 'approve')}
-                                    icon={<CheckCircle className="h-4 w-4" />}
-                                  >
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleUserAction(user.id, 'reject')}
-                                    icon={<XCircle className="h-4 w-4" />}
-                                  >
-                                    Reject
-                                  </Button>
-                                </div>
-                              )}
                             </td>
                           </tr>
                         ))}
