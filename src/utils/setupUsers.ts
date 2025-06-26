@@ -118,7 +118,7 @@ export const createCustomerUser = async (): Promise<UserSetupResult> => {
   try {
     console.log('Creating customer user...');
     
-    // Create the auth user for customer (using admin email as customer for testing)
+    // Create the auth user for customer
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: 'customer@mcgs.com',
       password: 'Rohan@123',
@@ -158,28 +158,45 @@ export const createCustomerUser = async (): Promise<UserSetupResult> => {
   }
 };
 
-export const clearAuthUsers = async (): Promise<UserSetupResult> => {
+export const clearDatabase = async (): Promise<UserSetupResult> => {
   try {
-    console.log('Clearing auth users...');
+    console.log('Clearing database...');
     
-    // Note: We cannot directly delete auth.users from the client
-    // This would need to be done via Supabase admin API or dashboard
-    // For now, we'll just clear the users table
-    
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all users
+    // Clear tables in correct order (respecting foreign key constraints)
+    const tablesToClear = [
+      'booking_assignments',
+      'provider_service_areas', 
+      'provider_categories',
+      'service_bookings',
+      'earnings',
+      'payments',
+      'reviews',
+      'services',
+      'service_providers',
+      'support_tickets',
+      'user_roles',
+      'admin_management',
+      'contacts',
+      'bookings',
+      'users'
+    ];
 
-    if (error) {
-      console.error('Error clearing users:', error);
-      return { success: false, message: 'Failed to clear users', error: error.message };
+    for (const table of tablesToClear) {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+
+      if (error) {
+        console.error(`Error clearing ${table}:`, error);
+        // Continue with other tables even if one fails
+      }
     }
 
-    return { success: true, message: 'Users cleared successfully' };
+    return { success: true, message: 'Database cleared successfully' };
   } catch (error) {
-    console.error('Error clearing users:', error);
-    return { success: false, message: 'Failed to clear users', error: error instanceof Error ? error.message : 'Unknown error' };
+    console.error('Error clearing database:', error);
+    return { success: false, message: 'Failed to clear database', error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
 
@@ -187,8 +204,11 @@ export const setupAllUsers = async (): Promise<UserSetupResult> => {
   try {
     console.log('Setting up all users...');
     
-    // Clear existing users first
-    await clearAuthUsers();
+    // Clear existing data first
+    await clearDatabase();
+    
+    // Wait a moment for the clear to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Create admin user
     const adminResult = await createAdminUser();
@@ -196,11 +216,17 @@ export const setupAllUsers = async (): Promise<UserSetupResult> => {
       return adminResult;
     }
     
+    // Wait between user creations
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     // Create provider user
     const providerResult = await createProviderUser();
     if (!providerResult.success) {
       return providerResult;
     }
+    
+    // Wait between user creations
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Create customer user
     const customerResult = await createCustomerUser();
@@ -214,3 +240,6 @@ export const setupAllUsers = async (): Promise<UserSetupResult> => {
     return { success: false, message: 'Failed to setup users', error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
+
+// Legacy function for backward compatibility
+export const clearAuthUsers = clearDatabase;
