@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Lock, Eye, EyeOff, UserPlus, AlertTriangle, Wrench, Shield, Info } from 'lucide-react';
+import { X, User, Mail, Lock, Eye, EyeOff, UserPlus, AlertTriangle, Wrench, Shield } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Button from '../ui/Button';
 import toast from 'react-hot-toast';
@@ -361,22 +361,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
                   </div>
                 </div>
               </button>
-            </div>
-          </div>
-
-          {/* Test Accounts Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-start">
-              <Info className="h-4 w-4 text-blue-600 mr-2 mt-0.5" />
-              <div className="text-blue-800 text-sm">
-                <p className="font-medium mb-1">Test Accounts Available:</p>
-                <div className="space-y-1 text-xs">
-                  <p><strong>Admin:</strong> worldecare@gmail.com / Rohan@123</p>
-                  <p><strong>Provider:</strong> nexterplus.com@gmail.com / Rohan@123</p>
-                  <p><strong>Customer:</strong> customer@mcgs.com / Rohan@123</p>
-                </div>
-                <p className="mt-2 text-xs">Or create a new account with any email.</p>
-              </div>
             </div>
           </div>
 
