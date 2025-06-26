@@ -59,41 +59,76 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
           }
         }
 
-        // Create auth user
+        // Try to create auth user
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
         });
 
         if (authError) {
-          // Handle specific auth errors
-          if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
-            // Try to sign in the user to check if they exist in our system
+          // Handle specific auth errors more gracefully
+          if (authError.message.includes('already registered') || 
+              authError.message.includes('already exists') ||
+              authError.message.includes('User already registered')) {
+            
+            // The user exists in auth but maybe not in our users table
+            // Try to sign them in to get their auth ID
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
               email: formData.email,
               password: formData.password,
             });
 
             if (signInData.user) {
-              // User exists in auth but maybe not in our users table
-              const { data: userProfile } = await supabase
+              // User exists in auth and password is correct
+              // Check if they have a profile in our users table
+              const { data: userProfile, error: profileCheckError } = await supabase
                 .from('users')
                 .select('*')
                 .eq('id', signInData.user.id)
                 .single();
 
-              await supabase.auth.signOut(); // Sign them out
+              // Sign them out immediately
+              await supabase.auth.signOut();
 
               if (userProfile) {
-                throw new Error(`Account already exists. Please sign in instead.`);
+                // User has a complete profile
+                if (userProfile.user_type !== userType) {
+                  throw new Error(`This email is already registered as a ${userProfile.user_type}. Please select the correct role or use a different email.`);
+                }
+                throw new Error(`Account already exists with this email. Please sign in instead.`);
               } else {
-                // Auth user exists but no profile - this is an orphaned auth user
-                throw new Error('Account exists but is incomplete. Please contact support to resolve this issue.');
+                // User exists in auth but no profile - create the missing profile
+                const { error: profileError } = await supabase
+                  .from('users')
+                  .insert([
+                    {
+                      id: signInData.user.id,
+                      email: formData.email,
+                      full_name: formData.fullName,
+                      user_type: userType,
+                      status: 'pending'
+                    }
+                  ]);
+
+                if (profileError) {
+                  console.error('Profile creation failed:', profileError);
+                  throw new Error('Failed to complete registration. Please contact support.');
+                }
+
+                toast.success('Registration completed! Your account is pending admin approval.');
+                toast.info('You will receive an email once your account is approved.');
+                
+                onClose();
+                resetForm();
+                return;
               }
             } else {
-              throw new Error('Email already registered with a different password. Please sign in or reset your password.');
+              // User exists in auth but password is wrong
+              throw new Error('An account with this email already exists. Please sign in with the correct password or use a different email.');
             }
           }
+          
+          // Other auth errors
           throw authError;
         }
 
@@ -112,8 +147,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 's
             ]);
 
           if (profileError) {
-            // If profile creation fails, we should clean up the auth user
-            // But we can't delete auth users from client side, so we'll just show an error
             console.error('Profile creation failed:', profileError);
             throw new Error('Registration failed. Please contact support.');
           }
