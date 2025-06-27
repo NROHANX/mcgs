@@ -165,15 +165,10 @@ export const clearDatabase = async (): Promise<UserSetupResult> => {
     // Clear tables in correct order (respecting foreign key constraints)
     const tablesToClear = [
       'booking_assignments',
-      'provider_service_areas', 
-      'provider_categories',
       'service_bookings',
       'reviews',
       'services',
       'service_providers',
-      'support_tickets',
-      'user_roles',
-      'admin_management',
       'contacts',
       'users'
     ];
@@ -235,26 +230,5 @@ export const setupAllUsers = async (): Promise<UserSetupResult> => {
   } catch (error) {
     console.error('Error setting up users:', error);
     return { success: false, message: 'Failed to setup users', error: error instanceof Error ? error.message : 'Unknown error' };
-  }
-};
-
-// Function to clear auth users (requires admin privileges)
-export const clearAuthUsers = async (): Promise<UserSetupResult> => {
-  try {
-    console.log('Note: Auth users cannot be deleted via client SDK for security reasons.');
-    console.log('You need to manually delete users from Supabase Dashboard > Authentication > Users');
-    console.log('Or use the Supabase CLI/Admin API');
-    
-    return { 
-      success: true, 
-      message: 'Database tables cleared. Please manually delete auth users from Supabase Dashboard if needed.' 
-    };
-  } catch (error) {
-    console.error('Error:', error);
-    return { 
-      success: false, 
-      message: 'Failed to clear auth users', 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    };
   }
 };
