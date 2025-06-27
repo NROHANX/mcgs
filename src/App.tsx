@@ -12,6 +12,7 @@ import BecomeProvider from './pages/BecomeProvider';
 import ProviderRegistration from './pages/ProviderRegistration';
 import ProviderLogin from './pages/ProviderLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminLogin from './pages/AdminLogin';
 import AdminSetup from './pages/AdminSetup';
 import { AuthProvider } from './contexts/AuthContext';
 
@@ -33,6 +34,7 @@ function App() {
             <Route path="/provider-registration" element={<ProviderRegistration />} />
             <Route path="/provider-login" element={<ProviderLogin />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/admin-setup" element={<AdminSetup />} />
           </Routes>
           <Toaster 

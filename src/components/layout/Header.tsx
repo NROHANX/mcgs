@@ -105,6 +105,11 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
             <Link to="/contact" className="text-gray-700 hover:text-blue-600 transition-colors">
               Contact Us
             </Link>
+
+            {/* Admin Login Link */}
+            <Link to="/admin-login" className="text-red-600 hover:text-red-800 transition-colors font-medium">
+              Admin
+            </Link>
           </nav>
 
           <div className="hidden md:flex items-center space-x-4">
@@ -173,6 +178,11 @@ const Header: React.FC<HeaderProps> = ({ onCategoryClick }) => {
             
             <Link to="/contact" className="text-gray-700 hover:text-blue-600 transition-colors py-2">
               Contact Us
+            </Link>
+
+            {/* Admin Login Link for Mobile */}
+            <Link to="/admin-login" className="text-red-600 hover:text-red-800 transition-colors py-2 font-medium">
+              Admin Login
             </Link>
           </nav>
           
