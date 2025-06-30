@@ -57,37 +57,12 @@ const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
     setLoading(true);
 
     try {
-      // First, try to find the service category
-      let serviceCategoryId = null;
-      
-      if (serviceCategory) {
-        const { data: categoryData } = await supabase
-          .from('service_categories')
-          .select('id')
-          .eq('name', serviceCategory)
-          .single();
-        
-        serviceCategoryId = categoryData?.id;
-      }
-
-      // If no category found, create a default one or use a fallback
-      if (!serviceCategoryId) {
-        const { data: defaultCategory } = await supabase
-          .from('service_categories')
-          .select('id')
-          .eq('name', 'General')
-          .single();
-        
-        serviceCategoryId = defaultCategory?.id;
-      }
-
-      // Insert into service_bookings table (the main booking table according to schema)
+      // Insert into service_bookings table
       const { error } = await supabase
         .from('service_bookings')
         .insert([
           {
             customer_id: user.id,
-            service_category_id: serviceCategoryId,
             service_name: formData.serviceName,
             description: formData.description,
             customer_name: formData.customerName,

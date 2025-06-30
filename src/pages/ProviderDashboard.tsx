@@ -16,19 +16,15 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
-import { supabase, ServiceProvider, ServiceBooking, BookingAssignment } from '../lib/supabase';
+import { supabase, ServiceProvider, ServiceBooking } from '../lib/supabase';
 import toast from 'react-hot-toast';
-
-interface BookingWithAssignment extends ServiceBooking {
-  assignment?: BookingAssignment;
-}
 
 const ProviderDashboard: React.FC = () => {
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'profile'>('overview');
   const [provider, setProvider] = useState<ServiceProvider | null>(null);
-  const [bookings, setBookings] = useState<BookingWithAssignment[]>([]);
+  const [bookings, setBookings] = useState<ServiceBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalBookings: 0,
@@ -69,12 +65,12 @@ const ProviderDashboard: React.FC = () => {
           .insert([
             {
               user_id: user?.id,
-              name: userProfile?.full_name || 'My Business',
+              business_name: userProfile?.full_name || 'My Business',
               category: 'General',
               description: 'Professional service provider',
-              available: true,
-              average_rating: 0,
-              review_count: 0
+              is_available: true,
+              rating: 0,
+              total_jobs: 0
             }
           ])
           .select()
@@ -87,32 +83,22 @@ const ProviderDashboard: React.FC = () => {
       }
 
       // Fetch bookings assigned to this provider
-      const { data: assignmentsData, error: assignmentsError } = await supabase
-        .from('booking_assignments')
-        .select(`
-          *,
-          booking:service_bookings(*)
-        `)
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('service_bookings')
+        .select('*')
         .eq('provider_id', providerData?.id)
         .order('created_at', { ascending: false });
 
-      if (assignmentsError) throw assignmentsError;
-
-      // Transform the data to match our interface
-      const bookingsWithAssignments = (assignmentsData || []).map(assignment => ({
-        ...assignment.booking,
-        assignment
-      }));
-
-      setBookings(bookingsWithAssignments);
+      if (bookingsError) throw bookingsError;
+      setBookings(bookingsData || []);
 
       // Calculate stats
-      const totalBookings = bookingsWithAssignments.length;
-      const pendingBookings = bookingsWithAssignments.filter(b => b.status === 'assigned' && !b.assignment?.provider_accepted).length;
-      const completedBookings = bookingsWithAssignments.filter(b => b.status === 'completed').length;
-      const totalEarnings = bookingsWithAssignments
+      const totalBookings = (bookingsData || []).length;
+      const pendingBookings = (bookingsData || []).filter(b => b.status === 'assigned').length;
+      const completedBookings = (bookingsData || []).filter(b => b.status === 'completed').length;
+      const totalEarnings = (bookingsData || [])
         .filter(b => b.status === 'completed')
-        .reduce((sum, b) => sum + (b.estimated_price || 0), 0);
+        .reduce((sum, b) => sum + (b.actual_price || b.estimated_price || 0), 0);
 
       setStats({
         totalBookings,
@@ -145,46 +131,18 @@ const ProviderDashboard: React.FC = () => {
     }
   };
 
-  const acceptBooking = async (assignmentId: string, bookingId: string) => {
-    try {
-      // Update assignment to accepted
-      const { error: assignmentError } = await supabase
-        .from('booking_assignments')
-        .update({ 
-          provider_accepted: true,
-          provider_response_at: new Date().toISOString()
-        })
-        .eq('id', assignmentId);
-
-      if (assignmentError) throw assignmentError;
-
-      // Update booking status to in_progress
-      const { error: bookingError } = await supabase
-        .from('service_bookings')
-        .update({ status: 'in_progress' })
-        .eq('id', bookingId);
-
-      if (bookingError) throw bookingError;
-
-      toast.success('Booking accepted successfully!');
-      fetchProviderData();
-    } catch (error) {
-      toast.error('Failed to accept booking');
-    }
-  };
-
   const toggleAvailability = async () => {
     if (!provider) return;
 
     try {
       const { error } = await supabase
         .from('service_providers')
-        .update({ available: !provider.available })
+        .update({ is_available: !provider.is_available })
         .eq('id', provider.id);
 
       if (error) throw error;
 
-      toast.success(`You are now ${!provider.available ? 'available' : 'unavailable'} for bookings`);
+      toast.success(`You are now ${!provider.is_available ? 'available' : 'unavailable'} for bookings`);
       fetchProviderData();
     } catch (error) {
       toast.error('Failed to update availability');
@@ -210,16 +168,16 @@ const ProviderDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Welcome {provider?.name}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Welcome {provider?.business_name}</h1>
               <p className="text-gray-600 mt-1">Service Provider Dashboard</p>
             </div>
             <div className="mt-4 sm:mt-0">
               <Button
                 onClick={toggleAvailability}
-                variant={provider?.available ? 'outline' : 'primary'}
-                icon={provider?.available ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                variant={provider?.is_available ? 'outline' : 'primary'}
+                icon={provider?.is_available ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
               >
-                {provider?.available ? 'Go Offline' : 'Go Online'}
+                {provider?.is_available ? 'Go Offline' : 'Go Online'}
               </Button>
             </div>
           </div>
@@ -239,7 +197,7 @@ const ProviderDashboard: React.FC = () => {
             <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Pending Response</p>
+                  <p className="text-sm font-medium text-gray-500">Pending</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.pendingBookings}</p>
                 </div>
                 <Clock className="h-8 w-8 text-orange-500" />
@@ -331,11 +289,11 @@ const ProviderDashboard: React.FC = () => {
                             <div className="text-right">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                booking.status === 'assigned' && !booking.assignment?.provider_accepted ? 'bg-orange-100 text-orange-800' :
+                                booking.status === 'assigned' ? 'bg-orange-100 text-orange-800' :
                                 booking.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}>
-                                {booking.status === 'assigned' && !booking.assignment?.provider_accepted ? 'Needs Response' : booking.status}
+                                {booking.status}
                               </span>
                               {booking.estimated_price && booking.estimated_price > 0 && (
                                 <p className="text-xs text-gray-500 mt-1">₹{booking.estimated_price}</p>
@@ -354,17 +312,17 @@ const ProviderDashboard: React.FC = () => {
                       <div className="space-y-4">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Status</span>
-                          <span className={`font-medium ${provider?.available ? 'text-green-600' : 'text-red-600'}`}>
-                            {provider?.available ? 'Available' : 'Offline'}
+                          <span className={`font-medium ${provider?.is_available ? 'text-green-600' : 'text-red-600'}`}>
+                            {provider?.is_available ? 'Available' : 'Offline'}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Rating</span>
-                          <span className="font-medium">{provider?.average_rating || 0}/5</span>
+                          <span className="font-medium">{provider?.rating || 0}/5</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Total Reviews</span>
-                          <span className="font-medium">{provider?.review_count || 0}</span>
+                          <span className="text-gray-600">Total Jobs</span>
+                          <span className="font-medium">{provider?.total_jobs || 0}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Category</span>
@@ -431,30 +389,21 @@ const ProviderDashboard: React.FC = () => {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                booking.status === 'assigned' && !booking.assignment?.provider_accepted ? 'bg-orange-100 text-orange-800' :
+                                booking.status === 'assigned' ? 'bg-orange-100 text-orange-800' :
                                 booking.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}>
-                                {booking.status === 'assigned' && !booking.assignment?.provider_accepted ? 'Needs Response' : booking.status}
+                                {booking.status}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              {booking.status === 'assigned' && !booking.assignment?.provider_accepted && (
-                                <div className="flex space-x-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => acceptBooking(booking.assignment!.id, booking.id)}
-                                  >
-                                    Accept
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => updateBookingStatus(booking.id, 'cancelled')}
-                                  >
-                                    Decline
-                                  </Button>
-                                </div>
+                              {booking.status === 'assigned' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateBookingStatus(booking.id, 'in_progress')}
+                                >
+                                  Start Work
+                                </Button>
                               )}
                               {booking.status === 'in_progress' && (
                                 <Button
@@ -493,7 +442,7 @@ const ProviderDashboard: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          value={provider.name}
+                          value={provider.business_name}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           readOnly
                         />
@@ -525,11 +474,11 @@ const ProviderDashboard: React.FC = () => {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Contact
+                          Phone
                         </label>
                         <input
                           type="text"
-                          value={provider.contact || ''}
+                          value={provider.phone || ''}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           readOnly
                         />
@@ -537,11 +486,11 @@ const ProviderDashboard: React.FC = () => {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Location
+                          Address
                         </label>
                         <input
                           type="text"
-                          value={provider.location || ''}
+                          value={provider.address || ''}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           readOnly
                         />

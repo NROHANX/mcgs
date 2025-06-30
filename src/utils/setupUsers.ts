@@ -90,12 +90,12 @@ export const createProviderUser = async (): Promise<UserSetupResult> => {
         .insert([
           {
             user_id: authData.user.id,
-            name: 'Test Provider Services',
+            business_name: 'Expert RO Services',
             category: 'RO Technician',
-            description: 'Professional RO technician with 5+ years experience',
-            contact: '+91 98765 43210',
-            location: 'Sitabuldi, Nagpur, Maharashtra',
-            available: true
+            description: 'Professional water purifier installation and maintenance services',
+            phone: '+91 98765 43210',
+            address: 'Sitabuldi, Nagpur, Maharashtra',
+            is_available: true
           }
         ]);
 
@@ -164,10 +164,7 @@ export const clearDatabase = async (): Promise<UserSetupResult> => {
     
     // Clear tables in correct order (respecting foreign key constraints)
     const tablesToClear = [
-      'booking_assignments',
       'service_bookings',
-      'reviews',
-      'services',
       'service_providers',
       'contacts',
       'users'

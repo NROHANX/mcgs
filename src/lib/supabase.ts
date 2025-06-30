@@ -24,7 +24,7 @@ export const supabase = createClient(
   }
 );
 
-// Database types for TypeScript - aligned with actual schema
+// Simplified database types
 export interface User {
   id: string;
   email: string;
@@ -35,58 +35,24 @@ export interface User {
   updated_at: string;
 }
 
-export interface ServiceCategory {
-  id: string;
-  name: string;
-  description?: string;
-  icon?: string;
-  base_price?: number;
-  estimated_duration?: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-export interface ServiceArea {
-  id: string;
-  area_name: string;
-  city: string;
-  state: string;
-  pincode?: string;
-  is_active: boolean;
-  created_at: string;
-}
-
 export interface ServiceProvider {
   id: string;
   user_id: string;
-  name: string;
+  business_name: string;
   category: string;
-  subcategory?: string;
   description?: string;
-  image?: string;
-  contact?: string;
-  location?: string;
-  complete_address?: string;
-  available: boolean;
-  average_rating: number;
-  review_count: number;
-  created_at: string;
-}
-
-export interface Service {
-  id: string;
-  provider_id: string;
-  name: string;
-  description?: string;
-  price?: string;
-  estimated_time?: string;
+  phone?: string;
+  address?: string;
+  is_available: boolean;
+  rating: number;
+  total_jobs: number;
   created_at: string;
 }
 
 export interface ServiceBooking {
   id: string;
   customer_id: string;
-  service_category_id?: string;
+  provider_id?: string;
   service_name: string;
   description?: string;
   customer_name: string;
@@ -97,32 +63,11 @@ export interface ServiceBooking {
   preferred_time_slot?: string;
   urgency: 'low' | 'normal' | 'high' | 'urgent';
   estimated_price?: number;
+  actual_price?: number;
   status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
   special_instructions?: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface BookingAssignment {
-  id: string;
-  booking_id: string;
-  provider_id?: string;
-  assigned_by?: string;
-  assignment_type: 'manual' | 'automatic';
-  assigned_at: string;
-  provider_accepted: boolean;
-  provider_response_at?: string;
-  notes?: string;
-  created_at: string;
-}
-
-export interface Review {
-  id: string;
-  provider_id: string;
-  user_id: string;
-  rating: number;
-  comment: string;
-  created_at: string;
 }
 
 export interface Contact {
@@ -135,55 +80,3 @@ export interface Contact {
   service_type?: string;
   created_at: string;
 }
-
-export interface SupportTicket {
-  id: string;
-  user_id: string;
-  title: string;
-  description: string;
-  category: 'technical' | 'billing' | 'general' | 'booking' | 'account';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'open' | 'in_progress' | 'resolved' | 'closed';
-  assigned_to?: string;
-  created_at: string;
-  updated_at: string;
-  resolved_at?: string;
-}
-
-export interface AdminManagement {
-  id: string;
-  user_id: string;
-  email: string;
-  role: 'super_admin' | 'admin';
-  created_at: string;
-}
-
-export interface UserRole {
-  id: string;
-  user_id: string;
-  role: 'super_admin' | 'admin' | 'employee' | 'support_staff' | 'customer_care' | 'booking_staff' | 'service_provider' | 'customer';
-  permissions: Record<string, any>;
-  assigned_by?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ProviderCategory {
-  id: string;
-  provider_id: string;
-  service_category_id: string;
-  experience_years?: number;
-  hourly_rate?: number;
-  is_primary: boolean;
-  created_at: string;
-}
-
-export interface ProviderServiceArea {
-  id: string;
-  provider_id: string;
-  service_area_id: string;
-  created_at: string;
-}
-
-// Legacy interfaces for backward compatibility
-export interface Booking extends ServiceBooking {}
